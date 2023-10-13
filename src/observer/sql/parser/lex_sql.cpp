@@ -2488,7 +2488,9 @@ void scan_string(const char *str, yyscan_t scanner) {
 }
 
 bool is_leap_year(unsigned year) {  // new
-  if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0))
+  if ((year % 4 == 0) && (year % 100 != 0))
+    return true;
+  else if (year % 400 == 0)
     return true;
   else
     return false;
@@ -2514,10 +2516,12 @@ date str_to_date(char *s) {   // new
     if (day > 30)
       valid = false;
   } else if (month == 2) {
-    if (is_leap_year(year) && day > 29) {
-      valid = false;
-    } else if (day > 28) {
-      valid = false;
+    if (is_leap_year(year)) {
+      if (day > 29)
+        valid = false;
+    } else {
+      if (day > 28)
+        valid = false;
     }
   } else {
     if (day > 31)
