@@ -46,6 +46,9 @@ while (0);
 extern int atoi();
 extern double atof();
 
+date str_to_date(char * s); // new
+bool is_leap_year(unsigned year);
+
 #define RETURN_TOKEN(token) LOG_DEBUG("%s", #token);return token
 %}
 
@@ -110,6 +113,7 @@ ROLLBACK                                RETURN_TOKEN(TRX_ROLLBACK);
 INT                                     RETURN_TOKEN(INT_T);
 CHAR                                    RETURN_TOKEN(STRING_T);
 FLOAT                                   RETURN_TOKEN(FLOAT_T);
+DATE                                    RETURN_TOKEN(DATE_T);
 LOAD                                    RETURN_TOKEN(LOAD);
 DATA                                    RETURN_TOKEN(DATA);
 INFILE                                  RETURN_TOKEN(INFILE);
@@ -131,6 +135,10 @@ EXPLAIN                                 RETURN_TOKEN(EXPLAIN);
 "-" |
 "*" |
 "/"                                     { return yytext[0]; }
+
+\'[0-9]{1,4}-[0-9]{1,2}-[0-9]{1,2}\'    yylval->dates = str_to_date(yytext); RETURN_TOKEN(DATE);
+\"[0-9]{1,4}-[0-9]{1,2}-[0-9]{1,2}\"    yylval->dates = str_to_date(yytext); RETURN_TOKEN(DATE);
+
 \"[^"]*\"                               yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 '[^']*\'                                yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 
@@ -139,4 +147,52 @@ EXPLAIN                                 RETURN_TOKEN(EXPLAIN);
 
 void scan_string(const char *str, yyscan_t scanner) {
   yy_switch_to_buffer(yy_scan_string(str, scanner), scanner);
+}
+
+bool is_leap_year(unsigned year) {  // new
+  if ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0))
+    return true;
+  else
+    return false;
+}
+
+date str_to_date(char *s) {   // new
+  unsigned year = 0, month = 0, day = 0;
+  date t = 0;
+  bool valid = true;
+
+  s += 1;
+  s[strlen(s)] = '\0';
+
+  sscanf(s, "%u-%u-%u\'", &year, &month, &day);
+
+  if (year == 0 || month == 0 || day == 0)
+    valid = false;
+
+  if (month > 12)
+    valid = false;
+  
+  if (month == 4 || month == 6 || month == 9 || month == 11) {
+    if (day != 30)
+      valid = false;
+  } else if (month == 2) {
+    if (is_leap_year(year)) {
+      valid = (day == 29);
+    } else {
+      valid = (day == 28);
+    }
+  } else {
+    if (day > 31)
+      valid = false;
+  }
+
+  if (valid)
+    t = day + (month << 4) + (year << 8);
+  else {
+    t = 0;
+  }
+
+  // printf("%u-%u-%u\n%u\n", year, month, day, t);
+
+  return t;
 }
