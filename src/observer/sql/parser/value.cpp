@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include <sstream>
+#include <iomanip>
 #include "sql/parser/value.h"
 #include "storage/field/field.h"
 #include "common/log/log.h"
@@ -182,7 +183,9 @@ std::string Value::to_string() const
       month = (t >> 8) & 0xff;
       day = t & 0xff;
 
-      os << year << "-" << month << "-" << day;
+      os << std::setw(4) << std::setfill('0') << year << "-";
+      os << std::setw(2) << std::setfill('0') << month << "-";
+      os << std::setw(2) << std::setfill('0') << day;
     } break;
     case CHARS: {
       os << str_value_;
