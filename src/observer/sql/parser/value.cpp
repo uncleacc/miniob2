@@ -175,12 +175,12 @@ std::string Value::to_string() const
       os << num_value_.bool_value_;
     } break;
     case DATES: {     // new
-      unsigned year, month, day;
+      unsigned year = 0, month = 0, day = 0;
       date t = num_value_.date_value_;
 
-      year = (t >> 8);
-      month = (t >> 4) & 0xf;
-      day = t & 0xf;
+      year = (t >> 16);
+      month = (t >> 8) & 0xff;
+      day = t & 0xff;
 
       os << year << "-" << month << "-" << day;
     } break;

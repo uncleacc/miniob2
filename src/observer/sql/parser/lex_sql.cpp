@@ -2514,10 +2514,10 @@ date str_to_date(char *s) {   // new
     if (day > 30)
       valid = false;
   } else if (month == 2) {
-    if (is_leap_year(year)) {
-      valid = (day <= 29);
-    } else {
-      valid = (day <= 28);
+    if (is_leap_year(year) && day > 29) {
+      valid = false;
+    } else if (day > 28) {
+      valid = false;
     }
   } else {
     if (day > 31)
@@ -2525,7 +2525,7 @@ date str_to_date(char *s) {   // new
   }
 
   if (valid)
-    t = day + (month << 4) + (year << 8);
+    t = day + (month << 8) + (year << 16);
   else {
     t = 0;
   }
