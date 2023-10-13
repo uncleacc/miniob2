@@ -2511,13 +2511,13 @@ date str_to_date(char *s) {   // new
     valid = false;
   
   if (month == 4 || month == 6 || month == 9 || month == 11) {
-    if (day != 30)
+    if (day > 30)
       valid = false;
   } else if (month == 2) {
     if (is_leap_year(year)) {
-      valid = (day == 29);
+      valid = (day <= 29);
     } else {
-      valid = (day == 28);
+      valid = (day <= 28);
     }
   } else {
     if (day > 31)
