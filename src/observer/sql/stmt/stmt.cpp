@@ -29,6 +29,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/set_variable_stmt.h"
 #include "sql/stmt/load_data_stmt.h"
 #include "sql/stmt/calc_stmt.h"
+#include "sql/stmt/drop_table_stmt.h"   // new
 
 RC Stmt::create_stmt(Db *db, ParsedSqlNode &sql_node, Stmt *&stmt)
 {
@@ -58,10 +59,9 @@ RC Stmt::create_stmt(Db *db, ParsedSqlNode &sql_node, Stmt *&stmt)
     }
 
     // new
-    // todo 实现DropTableStmt
-    // case SCF_DROP_TABLE: {
-    //   return DropTableStmt::create(db, sql_node.drop_table, stmt);
-    // }
+    case SCF_DROP_TABLE: {
+      return DropTableStmt::create(db, sql_node.drop_table, stmt);
+    }
 
     case SCF_DESC_TABLE: {
       return DescTableStmt::create(db, sql_node.desc_table, stmt);

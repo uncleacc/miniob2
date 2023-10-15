@@ -51,8 +51,8 @@ RC ResolveStage::handle_request(SQLStageEvent *sql_event)
     sql_result->set_return_code(rc);
     return rc;
   }
-
+  
   sql_event->set_stmt(stmt);
-
+  
   return rc;
 }

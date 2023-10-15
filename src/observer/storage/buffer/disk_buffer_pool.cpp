@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "common/os/os.h"
 #include "common/io/io.h"
+#include "disk_buffer_pool.h"
 
 using namespace common;
 using namespace std;
@@ -290,6 +291,21 @@ RC DiskBufferPool::close_file()
 
   bp_manager_.close_file(file_name_.c_str());
   return RC::SUCCESS;
+}
+
+// new
+RC DiskBufferPool::remove_file(const char *table_name) 
+{ 
+  RC rc = RC::SUCCESS;
+
+  // 关闭表文件
+  rc = close_file();
+  if (rc != RC::SUCCESS) {
+    // todo
+    return rc;
+  }
+
+  return rc;
 }
 
 RC DiskBufferPool::get_this_page(PageNum page_num, Frame **frame)

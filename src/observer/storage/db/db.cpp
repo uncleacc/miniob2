@@ -26,6 +26,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/meta_util.h"
 #include "storage/trx/trx.h"
 #include "storage/clog/clog.h"
+#include "db.h"
 
 Db::~Db()
 {
@@ -100,6 +101,32 @@ RC Db::create_table(const char *table_name, int attribute_count, const AttrInfoS
   LOG_INFO("Create table success. table name=%s, table_id:%d", table_name, table_id);
   return RC::SUCCESS;
 }
+
+// new
+RC Db::drop_table(const char *table_name) 
+{ 
+  RC rc = RC::SUCCESS;
+  // 检查表名
+  Table *table = find_table(table_name);
+  if (table == nullptr) {
+    LOG_WARN("%s not exist.", table_name);
+    return RC::SCHEMA_TABLE_NOT_EXIST;
+  }
+
+  // 删除
+  rc = table->drop(table_name);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to drop table");
+    return rc;
+  }
+
+  // 从打开表中删去
+  opened_tables_.erase(table_name);
+  LOG_INFO("Drop table success. table name=%s", table_name);
+
+  return rc;
+}
+
 
 Table *Db::find_table(const char *table_name) const
 {
