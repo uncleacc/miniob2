@@ -137,5 +137,11 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   filter_unit->set_comp(comp);
 
   // 检查两个类型是否能够比较
+  // AttrType left_type;
+  // if (condition.left_is_attr) {
+
+  // }
+
+
   return rc;
 }

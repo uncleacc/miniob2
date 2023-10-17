@@ -21,7 +21,7 @@ InsertStmt::InsertStmt(Table *table, const Value *values, int value_amount)
     : table_(table), values_(values), value_amount_(value_amount)
 {}
 
-RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
+RC InsertStmt::create(Db *db,/*delete*/ InsertSqlNode &inserts, Stmt *&stmt)
 {
   const char *table_name = inserts.relation_name.c_str();
   if (nullptr == db || nullptr == table_name || inserts.values.empty()) {
@@ -38,7 +38,7 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
   }
 
   // check the fields number
-  const Value *values = inserts.values.data();
+  Value *values = inserts.values.data();  // modify
   const int value_num = static_cast<int>(inserts.values.size());
   const TableMeta &table_meta = table->table_meta();
   const int field_num = table_meta.field_num() - table_meta.sys_field_num();
@@ -53,10 +53,37 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
     const FieldMeta *field_meta = table_meta.field(i + sys_field_num);
     const AttrType field_type = field_meta->type();
     const AttrType value_type = values[i].attr_type();
+
     if (field_type != value_type) {  // TODO try to convert the value type to field type
       LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
           table_name, field_meta->name(), field_type, value_type);
-      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+
+      if (field_type == INTS) {
+        // TODO，感觉代码有点乱，有点冗余，看看怎么优化
+        // 使用value的get是否能排除0的情况
+        switch (value_type)
+        {
+        case FLOATS:{
+          int convert_data = (int)values[i].get_float();
+          values[i].set_int(convert_data);
+        } break;
+        default:
+          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        }
+      } else if (field_type == FLOATS) {
+        switch (value_type)
+        {
+        case INTS:{
+          float convert_data = (float)values[i].get_int();
+          values[i].set_float(convert_data);
+        } break;
+        default:
+          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        }
+      } else if (field_type == CHARS) {
+        const char * s = values[i].get_string().c_str();
+        values[i].set_string(s);
+      }
     }
     if (value_type == DATES && values[i].get_date() == 0) {
       return RC::VARIABLE_NOT_VALID;
