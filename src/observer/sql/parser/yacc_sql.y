@@ -421,15 +421,6 @@ update_stmt:      /*  update 语句的语法解析树*/
       free($2);
       free($4);
     }
-    | UPDATE ID SET ID EQ value
-    {
-      /* new */
-      $$ = new ParsedSqlNode(SCF_UPDATE);
-      $$->update.relation_name = $2;
-      $$->update.attribute_name = $4;
-      $$->update.value = *$6;
-      $$->update.conditions = nullptr;
-    }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
     SELECT select_attr FROM ID rel_list where
