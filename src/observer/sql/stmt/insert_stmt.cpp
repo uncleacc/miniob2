@@ -53,28 +53,35 @@ RC InsertStmt::create(Db *db,/*delete*/ InsertSqlNode &inserts, Stmt *&stmt)
     const FieldMeta *field_meta = table_meta.field(i + sys_field_num);
     const AttrType field_type = field_meta->type();
     const AttrType value_type = values[i].attr_type();
-
+    // 检查不同类型是否可以类型转换
     if (field_type != value_type) {  // TODO try to convert the value type to field type
       LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
           table_name, field_meta->name(), field_type, value_type);
-
-      if (field_type == INTS) {
-        // TODO，感觉代码有点乱，有点冗余，看看怎么优化
-        // 使用value的get是否能排除0的情况
+      // TODO，感觉代码有点乱，有点冗余，看看怎么优化
+      // 使用value的get是否能排除0的情况
+      if (field_type == INTS) {     // 转INT
         switch (value_type)
         {
         case FLOATS:{
           int convert_data = (int)values[i].get_float();
           values[i].set_int(convert_data);
         } break;
+        case CHARS: {
+          int convert_data = atoi(values[i].get_string().c_str());
+          values[i].set_int(convert_data);
+        } break;
         default:
           return RC::SCHEMA_FIELD_TYPE_MISMATCH;
         }
-      } else if (field_type == FLOATS) {
+      } else if (field_type == FLOATS) {  // 转FLOAT
         switch (value_type)
         {
         case INTS:{
           float convert_data = (float)values[i].get_int();
+          values[i].set_float(convert_data);
+        } break;
+        case CHARS: {
+          float convert_data = atof(values[i].get_string().c_str());
           values[i].set_float(convert_data);
         } break;
         default:
@@ -85,7 +92,12 @@ RC InsertStmt::create(Db *db,/*delete*/ InsertSqlNode &inserts, Stmt *&stmt)
         values[i].set_string(s);
       }
     }
+    // 检查是否是非法日期
     if (value_type == DATES && values[i].get_date() == 0) {
+      return RC::VARIABLE_NOT_VALID;
+    }
+    // 检查字符串是否超长
+    if (value_type == CHARS && values[i].length() > field_meta->len()) {
       return RC::VARIABLE_NOT_VALID;
     }
   }
