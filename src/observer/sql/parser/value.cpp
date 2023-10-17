@@ -223,61 +223,63 @@ int Value::compare(const Value &other) const
         LOG_WARN("unsupported type: %d", this->attr_type_);
       }
     }
-  // 左右类型不同
-  } else if (this->attr_type_ == INTS) {    // modify
-    // modify
-    int left_data = this->num_value_.int_value_;
-    int right_data = 0;
+  } else{ // 左右类型不同
+    if (this->attr_type_ == INTS) {    // 整数与其它类型比较
+      // modify
+      int left_data = this->num_value_.int_value_;
+      int right_data = 0;
 
-    switch (other.attr_type_)
-    {
-    case FLOATS:
-      right_data = (int)other.num_value_.float_value_;
-      break;
-    case BOOLEANS:
-      right_data = other.get_boolean()?1:0;
-      break;
-    case CHARS: {
-      const char *right_str = other.str_value_.c_str();
-      right_data = atoi(right_str);
-    }
-      break;
-    default:
-      LOG_WARN("not supported");
-      return -1;
-    }
+      switch (other.attr_type_)
+      {
+      case FLOATS:
+        right_data = (int)other.num_value_.float_value_;
+        break;
+      case BOOLEANS:
+        right_data = other.get_boolean()?1:0;
+        break;
+      case CHARS: {
+        const char *right_str = other.str_value_.c_str();
+        right_data = atoi(right_str);
+      } break;
+      default:
+        LOG_WARN("not supported");
+        return -1;
+      }
 
-    return common::compare_int((void *)&left_data, (void *)&right_data);
-  } else if (this->attr_type_ == FLOATS) {
-    float left_data = this->num_value_.float_value_;
-    int right_data = (float)other.num_value_.float_value_;
+      return common::compare_int((void *)&left_data, (void *)&right_data);
+    } else if (this->attr_type_ == FLOATS) {  // 浮点与其它类型比较
+      float left_data = this->num_value_.float_value_;
+      int right_data = (float)other.num_value_.float_value_;
 
-    switch (other.attr_type_)
-    {
-    case INTS:
-      right_data = (float)other.num_value_.int_value_;
-      break;
-    case BOOLEANS:
-      right_data = other.get_boolean()?1.0:0.0;
-      break;
-    case CHARS: {
-      const char *right_str = other.str_value_.c_str();
-      std::cout << "debug: " << right_str << std::endl;
-      right_data = atof(right_str);
-    }
-      break;
-    default:
-      LOG_WARN("not supported");
-      return -1;
-    }
+      switch (other.attr_type_)
+      {
+      case INTS:
+        right_data = (float)other.num_value_.int_value_;
+        break;
+      case BOOLEANS:
+        right_data = other.get_boolean()?1.0:0.0;
+        break;
+      case CHARS: {
+        const char *right_str = other.str_value_.c_str();
+        std::cout << "debug: " << right_str << std::endl;
+        right_data = atof(right_str);
+      }
+        break;
+      default:
+        LOG_WARN("not supported");
+        return -1;
+      }
 
-    return common::compare_float((void *)&left_data, (void *)&right_data);
-  } else if (this->attr_type_ == CHARS) {  // 左边为字符串
-    std::string other_str = other.to_string();
-    return common::compare_string((void *)this->str_value_.c_str(),
-            this->str_value_.length(),
-            (void *)other_str.c_str(),
-            other_str.length() );
+        return common::compare_float((void *)&left_data, (void *)&right_data);
+    } 
+    // else if (this->attr_type_ == CHARS) {  // 左边为字符串
+    //     std::string other_str = other.to_string();
+    //     std::cout << "debug: " << other_str << std::endl;
+    //     return common::compare_string((void *)this->str_value_.c_str(),
+    //             this->str_value_.length(),
+    //             (void *)other_str.c_str(),
+    //             other_str.length() );
+    // }
   }
   LOG_WARN("not supported");
   return -1;  // TODO return rc?
