@@ -199,6 +199,8 @@ std::string Value::to_string() const
 
 int Value::compare(const Value &other) const
 {
+  // TODO
+  // 代码冗余，需要优化
   if (this->attr_type_ == other.attr_type_) {
     switch (this->attr_type_) {
       case INTS: {
@@ -272,14 +274,34 @@ int Value::compare(const Value &other) const
 
         return common::compare_float((void *)&left_data, (void *)&right_data);
     } 
-    // else if (this->attr_type_ == CHARS) {  // 左边为字符串
-    //     std::string other_str = other.to_string();
-    //     std::cout << "debug: " << other_str << std::endl;
-    //     return common::compare_string((void *)this->str_value_.c_str(),
-    //             this->str_value_.length(),
-    //             (void *)other_str.c_str(),
-    //             other_str.length() );
-    // }
+    else if (this->attr_type_ == CHARS) {  // 左边为字符串
+      switch (other.attr_type_)
+      {
+      case INTS: {
+        int left_data = atoi(this->get_string().c_str());
+        return common::compare_int((void *)&left_data, (void *)&(other.num_value_.int_value_));
+      } break;
+      case FLOATS: {
+        float left_data = atof(this->get_string().c_str());
+        return common::compare_float((void *)&left_data, (void *)&(other.num_value_.float_value_));
+      } break;
+      // TODO 字符串为空==False，非空为TRUE，大于布尔值时转换为01
+      // case BOOLEANS: {
+      //   bool left_b = this->get_string().empty();
+      //   return (left_b != other.get_boolean());
+      // } break;
+      case CHARS: {
+        std::string other_str = other.to_string();
+        return common::compare_string((void *)this->str_value_.c_str(),
+                this->str_value_.length(),
+                (void *)other_str.c_str(),
+                other_str.length() );
+      } break;
+      default:
+        LOG_WARN("not supported");
+        return -1;
+      }
+    }
   }
   LOG_WARN("not supported");
   return -1;  // TODO return rc?
