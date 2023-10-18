@@ -52,8 +52,9 @@ RC UpdatePhysicalOperator::next()
         // TODO: 有更新不成功的bug
         common::Mutex lock_;
         lock_.lock();
-        // memcpy(data + field_meta->offset(), value_->data(), value_->length());
-        memcpy(data + field_meta->offset(), value_->data(), value_->length());
+        const char *value_data = value_->data();
+        memmove(data + field_meta->offset(), value_data, (size_t)value_->length());
+        memmove(data + field_meta->offset(), value_data, (size_t)value_->length());
         lock_.unlock();
         // 是否需要手动更新索引?
         if (rc != RC::SUCCESS) {
