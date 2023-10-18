@@ -9,6 +9,7 @@
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
 #include "sql/stmt/update_stmt.h"
+#include "common/lang/mutex.h"
 
 RC UpdatePhysicalOperator::open(Trx *trx) 
 { 
@@ -48,7 +49,12 @@ RC UpdatePhysicalOperator::next()
         char * data = record.data();
         const TableMeta table_meta = table_->table_meta();
         const FieldMeta * field_meta = table_meta.field(field_.c_str());
+        // TODO: 有更新不成功的bug
+        common::Mutex lock_;
+        lock_.lock();
+        // memcpy(data + field_meta->offset(), value_->data(), value_->length());
         memcpy(data + field_meta->offset(), value_->data(), value_->length());
+        lock_.unlock();
         // 是否需要手动更新索引?
         if (rc != RC::SUCCESS) {
             LOG_WARN("failed to update record: %s", strrc(rc));
