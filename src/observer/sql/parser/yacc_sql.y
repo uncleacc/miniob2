@@ -99,6 +99,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         GE
         NE
         LIKE    // new
+        NOT     // new
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 /* 定义语法规则的值 */
@@ -135,6 +136,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <value>               value
 %type <number>              number
 %type <comp>                comp_op
+%type <comp>                like_comp_op
 %type <rel_attr>            rel_attr
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
@@ -639,12 +641,12 @@ condition:
       delete $1;
       delete $3;
     }
-    | rel_attr LIKE SSS
+    | rel_attr like_comp_op SSS
     {
       $$ = new ConditionSqlNode;
 
       $$->left_is_attr = 1;
-      $$->comp = LIKE_OP;
+      $$->comp = $2;
       $$->right_is_attr = 0;
 
       $$->left_attr = *$1;
@@ -676,6 +678,10 @@ comp_op:
     | LE { $$ = LESS_EQUAL; }
     | GE { $$ = GREAT_EQUAL; }
     | NE { $$ = NOT_EQUAL; }
+    ;
+like_comp_op:
+      LIKE { $$ = LIKE_OP;}
+    | NOT LIKE { $$ = NOT_LIKE_OP; }
     ;
 
 load_data_stmt:

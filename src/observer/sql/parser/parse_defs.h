@@ -53,6 +53,7 @@ enum CompOp
   GREAT_EQUAL,  ///< ">="
   GREAT_THAN,   ///< ">"
   LIKE_OP,      // new: like操作符，左属性右值
+  NOT_LIKE_OP,  // new: not like
   NO_OP
 };
 

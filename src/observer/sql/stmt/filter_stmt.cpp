@@ -85,7 +85,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
 
   // new
   // like操作符
-  if (comp == LIKE_OP) {
+  if (comp == LIKE_OP || comp == NOT_LIKE_OP) {
     DEBUG_PRINT("debug: filter_stmt: like操作符\n");
     // 检查左值是否是属性
     if (!condition.left_is_attr || condition.right_is_attr) {
@@ -105,7 +105,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     }
 
     filter_unit = new FilterUnit;
-    filter_unit->set_comp(LIKE_OP);
+    filter_unit->set_comp(comp);
     // 设置左滤子
     FilterObj left_filter_obj;
     left_filter_obj.init_attr(Field(table, field));

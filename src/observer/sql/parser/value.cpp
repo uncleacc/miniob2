@@ -331,6 +331,12 @@ int Value::compare_like(const Value &other) const
     return 0;
   }
 }
+// new
+int Value::compare_not_like(const Value &other) const 
+{
+  DEBUG_PRINT("debug: Value::compare_not_like\n");
+  return compare_like(other)?0:1;
+}
 
 int Value::get_int() const
 {
