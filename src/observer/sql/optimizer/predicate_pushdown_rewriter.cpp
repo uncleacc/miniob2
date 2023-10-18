@@ -101,12 +101,12 @@ RC PredicatePushdownRewriter::get_exprs_can_pushdown(
     // 如果是比较操作，并且比较的左边或右边是表某个列值，那么就下推下去
     auto comparison_expr = static_cast<ComparisonExpr *>(expr.get());
     CompOp comp = comparison_expr->comp();
-    if (comp != EQUAL_TO) {
+    
+    if (comp != EQUAL_TO && comp != LIKE_OP) {
       // 简单处理，仅取等值比较。当然还可以取一些范围比较，还有 like % 等操作
       // 其它的还有 is null 等
       return rc;
     }
-
     std::unique_ptr<Expression> &left_expr = comparison_expr->left();
     std::unique_ptr<Expression> &right_expr = comparison_expr->right();
     // 比较操作的左右两边只要有一个是取列字段值的并且另一边也是取字段值或常量，就pushdown
@@ -117,7 +117,7 @@ RC PredicatePushdownRewriter::get_exprs_can_pushdown(
         right_expr->type() != ExprType::FIELD && right_expr->type() != ExprType::VALUE) {
       return rc;
     }
-
+    DEBUG_PRINT("debug: 下推算子: %d\n", comp);
     pushdown_exprs.emplace_back(std::move(expr));
   }
   return rc;

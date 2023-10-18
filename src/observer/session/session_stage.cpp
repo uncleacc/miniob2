@@ -137,19 +137,19 @@ RC SessionStage::handle_sql(SQLStageEvent *sql_event)
     LOG_TRACE("failed to do parse. rc=%s", strrc(rc));
     return rc;
   }
-
+  DEBUG_PRINT("debug: SessionStage::handle_sql: 完成sql解析\n");
   rc = resolve_stage_.handle_request(sql_event);
   if (OB_FAIL(rc)) {
     LOG_TRACE("failed to do resolve. rc=%s", strrc(rc));
     return rc;
   }
-  
+  DEBUG_PRINT("debug: SessionStage::handle_sql: 完成stmt转化\n");
   rc = optimize_stage_.handle_request(sql_event);
   if (rc != RC::UNIMPLENMENT && rc != RC::SUCCESS) {
     LOG_TRACE("failed to do optimize. rc=%s", strrc(rc));
     return rc;
   }
-  
+  DEBUG_PRINT("debug: SessionStage::handle_sql: 完成执行计划生成\n");
   rc = execute_stage_.handle_request(sql_event);
   if (OB_FAIL(rc)) {
     LOG_TRACE("failed to do execute. rc=%s", strrc(rc));

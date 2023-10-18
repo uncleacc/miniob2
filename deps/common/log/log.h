@@ -224,6 +224,17 @@ extern Log *g_log;
 #define LOG_DEBUG(fmt, ...) LOG_OUTPUT(common::LOG_LEVEL_DEBUG, fmt, ##__VA_ARGS__)
 #define LOG_TRACE(fmt, ...) LOG_OUTPUT(common::LOG_LEVEL_TRACE, fmt, ##__VA_ARGS__)
 
+
+// ==================== //
+#define nieyang 0
+#if nieyang
+#define DEBUG_PRINT(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#else
+#define DEBUG_PRINT(fmt, ...)
+#endif
+// ==================== //
+
+
 template <class T>
 Log &Log::operator<<(T msg)
 {

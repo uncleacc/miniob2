@@ -36,6 +36,7 @@ IndexScanPhysicalOperator::IndexScanPhysicalOperator(
 
 RC IndexScanPhysicalOperator::open(Trx *trx)
 {
+  DEBUG_PRINT("debug: 索引扫描算子: scan\n");
   if (nullptr == table_ || nullptr == index_) {
     return RC::INTERNAL;
   }
@@ -67,6 +68,7 @@ RC IndexScanPhysicalOperator::open(Trx *trx)
 
 RC IndexScanPhysicalOperator::next()
 {
+  DEBUG_PRINT("debug: 索引扫描算子: next\n");
   RID rid;
   RC rc = RC::SUCCESS;
 
@@ -102,6 +104,7 @@ RC IndexScanPhysicalOperator::next()
 
 RC IndexScanPhysicalOperator::close()
 {
+  DEBUG_PRINT("debug: 索引扫描算子: close\n");
   index_scanner_->destroy();
   index_scanner_ = nullptr;
   return RC::SUCCESS;

@@ -61,7 +61,7 @@ RC ExecuteStage::handle_request_with_physical_operator(SQLStageEvent *sql_event)
 
   unique_ptr<PhysicalOperator> &physical_operator = sql_event->physical_operator();
   ASSERT(physical_operator != nullptr, "physical operator should not be null");
-
+  
   // TODO 这里也可以优化一下，是否可以让physical operator自己设置tuple schema
   TupleSchema schema;
   switch (stmt->type()) {
@@ -92,7 +92,7 @@ RC ExecuteStage::handle_request_with_physical_operator(SQLStageEvent *sql_event)
       // 只有select返回结果
     } break;
   }
-
+  
   SqlResult *sql_result = sql_event->session_event()->sql_result();
   sql_result->set_tuple_schema(schema);
   sql_result->set_operator(std::move(physical_operator));

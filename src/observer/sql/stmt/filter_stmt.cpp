@@ -81,15 +81,50 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     const ConditionSqlNode &condition, FilterUnit *&filter_unit)
 {
   RC rc = RC::SUCCESS;
-
   CompOp comp = condition.comp;
+
+  // new
+  // like操作符
+  if (comp == LIKE_OP) {
+    DEBUG_PRINT("debug: filter_stmt: like操作符\n");
+    // 检查左值是否是属性
+    if (!condition.left_is_attr || condition.right_is_attr) {
+      return RC::INTERNAL;
+    }
+    // 获取字段
+    Table *table = nullptr;
+    const FieldMeta *field = nullptr;
+    rc = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cannot find attr");
+      return rc;
+    }
+    // 检查左值属性是否是字符串
+    if (field->type() != CHARS) {
+      return RC::INTERNAL;
+    }
+
+    filter_unit = new FilterUnit;
+    filter_unit->set_comp(LIKE_OP);
+    // 设置左滤子
+    FilterObj left_filter_obj;
+    left_filter_obj.init_attr(Field(table, field));
+    filter_unit->set_left(left_filter_obj);
+    // 将正则存在右滤子的value的字符串中
+    FilterObj right_filter_obj;
+    right_filter_obj.init_value(condition.right_value);
+    filter_unit->set_right(right_filter_obj);
+    
+    return rc;
+  }
+  
   if (comp < EQUAL_TO || comp >= NO_OP) {
     LOG_WARN("invalid compare operator : %d", comp);
     return RC::INVALID_ARGUMENT;
   }
 
   filter_unit = new FilterUnit;
-
+  DEBUG_PRINT("debug: filter_stmt: 算术操作符\n");
   if (condition.left_is_attr) {
     Table *table = nullptr;
     const FieldMeta *field = nullptr;
@@ -137,11 +172,8 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   filter_unit->set_comp(comp);
 
   // 检查两个类型是否能够比较
-  // AttrType left_type;
-  // if (condition.left_is_attr) {
-
-  // }
-
+  // TODO优化
+  // 改变where比较的类型比每次比较再去改效率高
 
   return rc;
 }

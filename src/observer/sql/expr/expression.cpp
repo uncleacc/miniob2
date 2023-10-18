@@ -19,11 +19,13 @@ using namespace std;
 
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 {
+  DEBUG_PRINT("debug: FieldExpr: get_value\n");
   return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
 }
 
 RC ValueExpr::get_value(const Tuple &tuple, Value &value) const
 {
+  DEBUG_PRINT("debug: ValueExpr: get_value\n");
   value = value_;
   return RC::SUCCESS;
 }
@@ -88,7 +90,13 @@ ComparisonExpr::~ComparisonExpr()
 
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
+  DEBUG_PRINT("debug: ComparisonExpr: compare_value\n");
   RC rc = RC::SUCCESS;
+  if (comp_ == LIKE_OP) {  // new
+    result = left.compare_like(right);
+    return rc;
+  }
+  
   int cmp_result = left.compare(right);
   result = false;
   switch (comp_) {
@@ -142,6 +150,7 @@ RC ComparisonExpr::try_get_value(Value &cell) const
 
 RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 {
+  DEBUG_PRINT("debug: ComparisonExpr: get_value\n");
   Value left_value;
   Value right_value;
 
@@ -155,9 +164,9 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
     return rc;
   }
-
   bool bool_value = false;
   rc = compare_value(left_value, right_value, bool_value);
+  
   if (rc == RC::SUCCESS) {
     value.set_boolean(bool_value);
   }
@@ -171,6 +180,7 @@ ConjunctionExpr::ConjunctionExpr(Type type, vector<unique_ptr<Expression>> &chil
 
 RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
 {
+  DEBUG_PRINT("debug: ConjunctionExpr: get_value\n");
   RC rc = RC::SUCCESS;
   if (children_.empty()) {
     value.set_boolean(true);

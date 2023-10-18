@@ -98,6 +98,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         LE
         GE
         NE
+        LIKE    // new
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 /* 定义语法规则的值 */
@@ -637,6 +638,34 @@ condition:
 
       delete $1;
       delete $3;
+    }
+    | rel_attr LIKE SSS
+    {
+      $$ = new ConditionSqlNode;
+
+      $$->left_is_attr = 1;
+      $$->comp = LIKE_OP;
+      $$->right_is_attr = 0;
+
+      $$->left_attr = *$1;
+
+      string regex = common::substr($3,1,strlen($3)-2);
+      size_t pos = 0;
+      while ((pos = regex.find("%", pos)) != string::npos) {
+        regex.replace(pos, 1, ".*");
+        pos += 2;
+      }
+      pos = 0;
+      while ((pos = regex.find("_", pos)) != string::npos) {
+        regex.replace(pos, 1, ".");
+        pos += 1;
+      }
+      // cout << regex << endl;
+      Value *value = new Value(regex.c_str());
+      $$->right_value = *value;
+
+      delete $1;
+      free($3);
     }
     ;
 

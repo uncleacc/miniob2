@@ -118,6 +118,7 @@ LOAD                                    RETURN_TOKEN(LOAD);
 DATA                                    RETURN_TOKEN(DATA);
 INFILE                                  RETURN_TOKEN(INFILE);
 EXPLAIN                                 RETURN_TOKEN(EXPLAIN);
+LIKE                                    RETURN_TOKEN(LIKE);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
 "("                                     RETURN_TOKEN(LBRACE);
 ")"                                     RETURN_TOKEN(RBRACE);
@@ -195,8 +196,8 @@ date str_to_date(char *s) {   // new
   else {
     t = 0;
   }
-
-  // printf("%u-%u-%u\n%u\n", year, month, day, t);
+  
+  // DEBUF_PRINT("%u-%u-%u\n%u\n", year, month, day, t);
 
   return t;
 }

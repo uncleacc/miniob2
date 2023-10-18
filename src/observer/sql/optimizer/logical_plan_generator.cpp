@@ -135,11 +135,14 @@ RC LogicalPlanGenerator::create_plan(
 RC LogicalPlanGenerator::create_plan(
     FilterStmt *filter_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
+  DEBUG_PRINT("debug: LogicalPlanGenerator: 创建filter逻辑执行计划\n");
   std::vector<unique_ptr<Expression>> cmp_exprs;
   const std::vector<FilterUnit *> &filter_units = filter_stmt->filter_units();
   for (const FilterUnit *filter_unit : filter_units) {
     const FilterObj &filter_obj_left = filter_unit->left();
     const FilterObj &filter_obj_right = filter_unit->right();
+    DEBUG_PRINT("debug: 左属性: %d\n", filter_obj_left.is_attr);
+    DEBUG_PRINT("debug: 右属性: %d\n", filter_obj_right.is_attr);
 
     unique_ptr<Expression> left(filter_obj_left.is_attr
                                          ? static_cast<Expression *>(new FieldExpr(filter_obj_left.field))

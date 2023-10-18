@@ -19,6 +19,7 @@ NestedLoopJoinPhysicalOperator::NestedLoopJoinPhysicalOperator()
 
 RC NestedLoopJoinPhysicalOperator::open(Trx *trx)
 {
+  DEBUG_PRINT("debug: join算子: open\n");
   if (children_.size() != 2) {
     LOG_WARN("nlj operator should have 2 children");
     return RC::INTERNAL;
@@ -37,6 +38,7 @@ RC NestedLoopJoinPhysicalOperator::open(Trx *trx)
 
 RC NestedLoopJoinPhysicalOperator::next()
 {
+  DEBUG_PRINT("debug: join算子: next\n");
   bool left_need_step = (left_tuple_ == nullptr);
   RC rc = RC::SUCCESS;
   if (round_done_) {
@@ -67,6 +69,7 @@ RC NestedLoopJoinPhysicalOperator::next()
 
 RC NestedLoopJoinPhysicalOperator::close()
 {
+  DEBUG_PRINT("debug: join算子: close\n");
   RC rc = left_->close();
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to close left oper. rc=%s", strrc(rc));

@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 
 RC ProjectPhysicalOperator::open(Trx *trx)
 {
+  DEBUG_PRINT("debug: 投影算子: open\n");
   if (children_.empty()) {
     return RC::SUCCESS;
   }
@@ -35,6 +36,7 @@ RC ProjectPhysicalOperator::open(Trx *trx)
 
 RC ProjectPhysicalOperator::next()
 {
+  DEBUG_PRINT("debug: 投影算子: next\n");
   if (children_.empty()) {
     return RC::RECORD_EOF;
   }
@@ -43,6 +45,7 @@ RC ProjectPhysicalOperator::next()
 
 RC ProjectPhysicalOperator::close()
 {
+  DEBUG_PRINT("debug: 投影算子: close\n");
   if (!children_.empty()) {
     children_[0]->close();
   }

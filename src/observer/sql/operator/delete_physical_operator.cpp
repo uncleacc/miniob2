@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 
 RC DeletePhysicalOperator::open(Trx *trx)
 {
+  DEBUG_PRINT("debug: 删除算子: open\n");
   if (children_.empty()) {
     return RC::SUCCESS;
   }
@@ -39,19 +40,23 @@ RC DeletePhysicalOperator::open(Trx *trx)
 
 RC DeletePhysicalOperator::next()
 {
+  DEBUG_PRINT("debug: 删除算子: next\n");
   RC rc = RC::SUCCESS;
   if (children_.empty()) {
+    DEBUG_PRINT("debug: 删除算子: EOF\n");
     return RC::RECORD_EOF;
   }
-
+  DEBUG_PRINT("debug: 删除算子: child->next()\n");
   PhysicalOperator *child = children_[0].get();
   while (RC::SUCCESS == (rc = child->next())) {
+    DEBUG_PRINT("debug: 删除算子: child->current_tuple()\n");
     Tuple *tuple = child->current_tuple();
     if (nullptr == tuple) {
+      DEBUG_PRINT("debug: 删除算子: 获得失败\n");
       LOG_WARN("failed to get current record: %s", strrc(rc));
       return rc;
     }
-
+    DEBUG_PRINT("debug: 删除算子: 获得成功\n");
     RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
     Record &record = row_tuple->record();
     rc = trx_->delete_record(table_, record);
@@ -66,6 +71,7 @@ RC DeletePhysicalOperator::next()
 
 RC DeletePhysicalOperator::close()
 {
+  DEBUG_PRINT("debug: 删除算子: close\n");
   if (!children_.empty()) {
     children_[0]->close();
   }

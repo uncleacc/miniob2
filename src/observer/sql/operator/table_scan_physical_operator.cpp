@@ -20,6 +20,7 @@ using namespace std;
 
 RC TableScanPhysicalOperator::open(Trx *trx)
 {
+  DEBUG_PRINT("debug: Table扫描算子: open\n");
   RC rc = table_->get_record_scanner(record_scanner_, trx, readonly_);
   if (rc == RC::SUCCESS) {
     tuple_.set_schema(table_, table_->table_meta().field_metas());
@@ -30,6 +31,7 @@ RC TableScanPhysicalOperator::open(Trx *trx)
 
 RC TableScanPhysicalOperator::next()
 {
+  DEBUG_PRINT("debug: Table扫描算子: next\n");
   if (!record_scanner_.has_next()) {
     return RC::RECORD_EOF;
   }
@@ -41,7 +43,7 @@ RC TableScanPhysicalOperator::next()
     if (rc != RC::SUCCESS) {
       return rc;
     }
-
+    DEBUG_PRINT("debug: Table扫描算子: next: filter\n");
     tuple_.set_record(&current_record_);
     rc = filter(tuple_, filter_result);
     if (rc != RC::SUCCESS) {
@@ -61,6 +63,7 @@ RC TableScanPhysicalOperator::next()
 
 RC TableScanPhysicalOperator::close()
 {
+  DEBUG_PRINT("debug: Table扫描算子: close\n");
   return record_scanner_.close_scan();
 }
 
@@ -82,6 +85,7 @@ void TableScanPhysicalOperator::set_predicates(vector<unique_ptr<Expression>> &&
 
 RC TableScanPhysicalOperator::filter(RowTuple &tuple, bool &result)
 {
+  DEBUG_PRINT("debug: Table扫描算子: filter\n");
   RC rc = RC::SUCCESS;
   Value value;
   for (unique_ptr<Expression> &expr : predicates_) {

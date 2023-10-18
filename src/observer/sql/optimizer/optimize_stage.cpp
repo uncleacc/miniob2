@@ -42,13 +42,13 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
     return rc;
   }
 
-  rc = rewrite(logical_operator);
+  rc = rewrite(logical_operator);   // TODO
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to rewrite plan. rc=%s", strrc(rc));
     return rc;
   }
 
-  rc = optimize(logical_operator);
+  rc = optimize(logical_operator);  // TODO
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to optimize plan. rc=%s", strrc(rc));
     return rc;

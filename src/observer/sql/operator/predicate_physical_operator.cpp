@@ -25,6 +25,7 @@ PredicatePhysicalOperator::PredicatePhysicalOperator(std::unique_ptr<Expression>
 
 RC PredicatePhysicalOperator::open(Trx *trx)
 {
+  DEBUG_PRINT("debug: 过滤算子: open\n");
   if (children_.size() != 1) {
     LOG_WARN("predicate operator must has one child");
     return RC::INTERNAL;
@@ -35,6 +36,7 @@ RC PredicatePhysicalOperator::open(Trx *trx)
 
 RC PredicatePhysicalOperator::next()
 {
+  DEBUG_PRINT("debug: 过滤算子: next\n");
   RC rc = RC::SUCCESS;
   PhysicalOperator *oper = children_.front().get();
 
@@ -61,6 +63,7 @@ RC PredicatePhysicalOperator::next()
 
 RC PredicatePhysicalOperator::close()
 {
+  DEBUG_PRINT("debug: 过滤算子: close\n");
   children_[0]->close();
   return RC::SUCCESS;
 }

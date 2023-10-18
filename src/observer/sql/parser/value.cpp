@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include <sstream>
 #include <iomanip>
+#include <regex>
 #include "sql/parser/value.h"
 #include "storage/field/field.h"
 #include "common/log/log.h"
@@ -199,6 +200,7 @@ std::string Value::to_string() const
 
 int Value::compare(const Value &other) const
 {
+  DEBUG_PRINT("debug: Value::compare\n");
   // TODO
   // 代码冗余，需要优化
   if (this->attr_type_ == other.attr_type_) {
@@ -305,6 +307,29 @@ int Value::compare(const Value &other) const
   }
   LOG_WARN("not supported");
   return -1;  // TODO return rc?
+}
+
+// new
+// 0 为错误
+// 1 为正确
+int Value::compare_like(const Value &other) const 
+{ 
+  DEBUG_PRINT("debug: Value::compare_like\n");
+  if (this->attr_type_ != CHARS || other.attr_type_ != CHARS) {
+    return 0;
+  }
+  std::string regex_str = other.get_string();
+  
+  DEBUG_PRINT("debug: left_str %s\n", this->get_string().c_str());
+  DEBUG_PRINT("debug: regex_str %s\n", regex_str.c_str());
+
+  if (std::regex_match(this->get_string(), std::regex(regex_str))) {
+    DEBUG_PRINT("debug: Value::compare_like: result 1\n");
+    return 1;
+  } else {
+    DEBUG_PRINT("debug: Value::compare_like: result 0\n");
+    return 0;
+  }
 }
 
 int Value::get_int() const
