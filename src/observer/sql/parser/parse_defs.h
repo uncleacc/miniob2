@@ -78,6 +78,35 @@ struct ConditionSqlNode
   Value           right_value;     ///< right-hand side value if right_is_attr = FALSE
 };
 
+// 每个select单元的类型
+enum SelectExprType {
+  REL_ATTR_SELECT_T = 0,     // 表中的属性
+  AGGR_FUNC_SELECT_T,        // 聚合函数
+  // TODO: 其它类型
+};
+
+// 聚合函数类型
+enum AggrFuncType {
+  MAX_AGGR_T = 0,     // max
+  MIN_AGGR_T,         // min
+  COUNT_AGGR_T,       // count
+  AVG_AGGR_T,         // avg
+  SUM_AGGR_T,         // sum
+};
+
+// 聚合函数
+struct AggrFuncNode {
+  AggrFuncType type;
+  std::vector<RelAttrSqlNode> attributes;
+};
+
+struct SelectExprNode
+{
+  SelectExprType type;
+  RelAttrSqlNode* attribute;    // 如果是表属性
+  AggrFuncNode*   aggrfunc;     // 如果是聚合函数
+};
+
 /**
  * @brief 描述一个select语句
  * @ingroup SQLParser
@@ -94,6 +123,8 @@ struct SelectSqlNode
   std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
   std::vector<std::string>        relations;     ///< 查询的表
   std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
+  std::vector<SelectExprNode>     select_exprs;  /// new: 表属性或聚合函数或再添加
+  std::vector<RelAttrSqlNode>     grourp_by_rels;/// group by中的列，暂时不用
 };
 
 /**

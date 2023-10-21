@@ -54,11 +54,13 @@ public:
 
   RC open(Trx *) override
   {
+    DEBUG_PRINT("debug: string list算子: open\n");
     return RC::SUCCESS;
   }
 
   RC next() override
   {
+    DEBUG_PRINT("debug: string list算子: next\n");
     if (!started_) {
       started_ = true;
       iterator_ = strings_.begin();

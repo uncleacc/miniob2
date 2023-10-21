@@ -48,6 +48,7 @@ enum class PhysicalOperatorType
   DELETE,
   INSERT,
   UPDATE,   // new
+  AGGR_PHYSICAL_T, 
 };
 
 /**

@@ -26,6 +26,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/insert_physical_operator.h"
 #include "sql/operator/update_logical_operator.h"     // new
 #include "sql/operator/update_physical_operator.h"    // new
+#include "sql/operator/aggr_logical_operator.h"       // new
+#include "sql/operator/aggr_physical_operatior.h"     // new
 #include "sql/operator/delete_logical_operator.h"
 #include "sql/operator/delete_physical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
@@ -81,10 +83,40 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
       return create_plan(static_cast<JoinLogicalOperator &>(logical_operator), oper);
     } break;
 
+    // 聚合算子
+    case LogicalOperatorType::AGGR_LOGICAL_T: {
+      return create_plan(static_cast<AggregationLogicalOperator &>(logical_operator), oper);
+    } break;
+
     default: {
       return RC::INVALID_ARGUMENT;
     }
   }
+  return rc;
+}
+
+RC PhysicalPlanGenerator::create_plan(AggregationLogicalOperator &aggr_oper, unique_ptr<PhysicalOperator> &oper)
+{  
+  // 递归子创建子算子
+  vector<unique_ptr<LogicalOperator>> &child_opers = aggr_oper.children();
+  ASSERT(child_opers.size() > 0, "聚合算子必须有子物理算子");
+
+  unique_ptr<PhysicalOperator> child_phy_oper;
+
+  RC rc = RC::SUCCESS;
+  if (!child_opers.empty()) {
+    // 为第一个子逻辑算子创建物理算子
+    LogicalOperator *child_oper = child_opers.front().get();
+    rc = create(*child_oper, child_phy_oper);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create child operator. rc=%s", strrc(rc));
+      return rc;
+    }
+  }
+
+  vector<Expression*> &expressions = aggr_oper.select_exprs();
+  oper = unique_ptr<PhysicalOperator>(new AggrPhysicalOperator(expressions));
+  oper->add_child(std::move(child_phy_oper));
   return rc;
 }
 
@@ -187,6 +219,7 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper, uniq
 
   RC rc = RC::SUCCESS;
   if (!child_opers.empty()) {
+    // 为第一个子逻辑算子创建物理算子
     LogicalOperator *child_oper = child_opers.front().get();
     rc = create(*child_oper, child_phy_oper);
     if (rc != RC::SUCCESS) {
@@ -195,11 +228,27 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper, uniq
     }
   }
 
+  // 创建投影物理算子
+  // ---modify--- //
+  vector<Expression*> &expressions = project_oper.select_exprs();
   ProjectPhysicalOperator *project_operator = new ProjectPhysicalOperator;
-  const vector<Field> &project_fields = project_oper.fields();
-  for (const Field &field : project_fields) {
-    project_operator->add_projection(field.table(), field.meta());
+  for (Expression *&expr : expressions) {
+    switch (expr->type())
+    {
+    case ExprType::FIELD : {
+      const FieldExpr* field_expr = static_cast<FieldExpr*>(expr);
+      project_operator->add_projection(field_expr->field().table(), field_expr->field().meta());
+    } break;
+    case ExprType::AGGREGATION : {
+      const AggregationExpr* aggr_expr = static_cast<AggregationExpr*>(expr);
+      project_operator->add_projection(aggr_expr);
+    } break;
+    default: {
+      return RC::UNIMPLENMENT;
+    } break;
+    }
   }
+  // ---modify--- //
 
   if (child_phy_oper) {
     project_operator->add_child(std::move(child_phy_oper));
@@ -228,7 +277,7 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique
   // 物理子算子
   unique_ptr<PhysicalOperator> child_physical_oper;
 
-  // 不为空则将逻辑子算子转为物理子算子
+  // 不断递归创建物理算子
   RC rc = RC::SUCCESS;
   if (!child_opers.empty()) {
     LogicalOperator *child_oper = child_opers.front().get();

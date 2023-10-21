@@ -27,6 +27,7 @@ RC try_to_get_bool_constant(std::unique_ptr<Expression> &expr, bool &constant_va
 }
 RC ConjunctionSimplificationRule::rewrite(std::unique_ptr<Expression> &expr, bool &change_made)
 {
+  // DEBUG_PRINT("debug: 重写联结表达式\n");
   RC rc = RC::SUCCESS;
   if (expr->type() != ExprType::CONJUNCTION) {
     return rc;

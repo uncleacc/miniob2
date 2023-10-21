@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/stmt/select_stmt.h"
 #include "sql/stmt/filter_stmt.h"
+#include "sql/stmt/aggregation_stmt.h"
 #include "common/log/log.h"
 #include "common/lang/string.h"
 #include "storage/db/db.h"
@@ -36,6 +37,15 @@ static void wildcard_fields(Table *table, std::vector<Field> &field_metas)
   }
 }
 
+static void wildcard_query_exprs(Table *table, std::vector<Expression *> &expressions)
+{
+  const TableMeta &table_meta = table->table_meta();
+  const int field_num = table_meta.field_num();
+  for (int i = table_meta.sys_field_num(); i < field_num; i++) {
+    expressions.emplace_back(new FieldExpr(Field(table, table_meta.field(i))));
+  }
+}
+
 RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 {
   if (nullptr == db) {
@@ -44,6 +54,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   }
 
   // collect tables in `from` statement
+  // 找到'from'后面的表
   std::vector<Table *> tables;
   std::unordered_map<std::string, Table *> table_map;
   for (size_t i = 0; i < select_sql.relations.size(); i++) {
@@ -59,32 +70,71 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       return RC::SCHEMA_TABLE_NOT_EXIST;
     }
 
+    DEBUG_PRINT("debug: 找到表：%s\n", table_name);
     tables.push_back(table);
     table_map.insert(std::pair<std::string, Table *>(table_name, table));
   }
 
+
   // collect query fields in `select` statement
   std::vector<Field> query_fields;
-  for (int i = static_cast<int>(select_sql.attributes.size()) - 1; i >= 0; i--) {
-    const RelAttrSqlNode &relation_attr = select_sql.attributes[i];
+  std::vector<Expression *> query_exprs; // new
+  for (int i = static_cast<int>(select_sql.select_exprs.size()) - 1; i >= 0; i--) {
+    // 检查是否有聚合操作
+    const SelectExprNode &s_expr_node = select_sql.select_exprs[i];
 
+    // =============聚合============= //
+    if (s_expr_node.type == AGGR_FUNC_SELECT_T) {
+      //DEBUG_PRINT("debug: 进行聚合函数解析: %d\n",i);
+      
+      Table *default_table = nullptr;
+      if (tables.size() == 1) {
+        default_table = tables[0];
+      }
+
+      AggrUnit *aggr_unit = nullptr;
+
+      RC rc = AggrStmt::create_aggr_unit(db,
+        default_table,
+        &table_map,
+        *s_expr_node.aggrfunc,
+        aggr_unit);
+      if (rc != RC::SUCCESS) {
+        // DEBUG_PRINT("debug: 创建聚合失败\n");
+        return rc;
+      }
+      // DEBUG_PRINT("debug: 创建聚合成功\n");
+      // query_fields.emplace_back()
+      query_exprs.emplace_back(aggr_unit->get_aggr_expr()); // modify
+
+      continue;
+    }
+    // =============聚合============= //
+
+    const RelAttrSqlNode &relation_attr = *s_expr_node.attribute;
+
+    // 表名为空，列属性为"*"，添加所有列
     if (common::is_blank(relation_attr.relation_name.c_str()) &&
         0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
       for (Table *table : tables) {
         wildcard_fields(table, query_fields);
+        wildcard_query_exprs(table, query_exprs);   // new
       }
-
-    } else if (!common::is_blank(relation_attr.relation_name.c_str())) {
+    }
+    // 表名不为空
+    else if (!common::is_blank(relation_attr.relation_name.c_str())) {
       const char *table_name = relation_attr.relation_name.c_str();
       const char *field_name = relation_attr.attribute_name.c_str();
-
+      // 表名为"*"
       if (0 == strcmp(table_name, "*")) {
+        // 属性不为"*"
         if (0 != strcmp(field_name, "*")) {
           LOG_WARN("invalid field name while table is *. attr=%s", field_name);
           return RC::SCHEMA_FIELD_MISSING;
         }
         for (Table *table : tables) {
           wildcard_fields(table, query_fields);
+          wildcard_query_exprs(table, query_exprs);   // new
         }
       } else {
         auto iter = table_map.find(table_name);
@@ -96,6 +146,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
         Table *table = iter->second;
         if (0 == strcmp(field_name, "*")) {
           wildcard_fields(table, query_fields);
+          wildcard_query_exprs(table, query_exprs);   // new
         } else {
           const FieldMeta *field_meta = table->table_meta().field(field_name);
           if (nullptr == field_meta) {
@@ -104,9 +155,12 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
           }
 
           query_fields.push_back(Field(table, field_meta));
+          query_exprs.emplace_back(new FieldExpr(Field(table, field_meta)));    // modify
         }
       }
-    } else {
+    }
+    // 表名为空则默认为第一个表，有多个表则错误
+    else {
       if (tables.size() != 1) {
         LOG_WARN("invalid. I do not know the attr's table. attr=%s", relation_attr.attribute_name.c_str());
         return RC::SCHEMA_FIELD_MISSING;
@@ -120,10 +174,15 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       }
 
       query_fields.push_back(Field(table, field_meta));
+      query_exprs.emplace_back(new FieldExpr(Field(table, field_meta)));   // new
     }
   }
 
-  LOG_INFO("got %d tables in from stmt and %d fields in query stmt", tables.size(), query_fields.size());
+  // 检查聚合
+  // if (!select_sql.grourp_by_rels.empty() && query_exprs.size()) {
+  //   DEBUG_PRINT("debug: 聚合语法错误\n");
+  //   return RC::INVALID_ARGUMENT;
+  // }
 
   Table *default_table = nullptr;
   if (tables.size() == 1) {
@@ -149,6 +208,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->tables_.swap(tables);
   select_stmt->query_fields_.swap(query_fields);
   select_stmt->filter_stmt_ = filter_stmt;
+  select_stmt->query_exprs_.swap(query_exprs);
   stmt = select_stmt;
   return RC::SUCCESS;
 }

@@ -23,6 +23,7 @@ See the Mulan PSL v2 for more details. */
 
 class FieldMeta;
 class FilterStmt;
+class AggrStmt;
 class Db;
 class Table;
 
@@ -57,9 +58,16 @@ public:
   {
     return filter_stmt_;
   }
+  // new
+  std::vector<Expression*> &query_exprs() {
+    return query_exprs_;
+  }
 
 private:
   std::vector<Field> query_fields_;
   std::vector<Table *> tables_;
   FilterStmt *filter_stmt_ = nullptr;
+  // 添加聚合语句
+  // GROUP_BY
+  std::vector<Expression *> query_exprs_; // new
 };

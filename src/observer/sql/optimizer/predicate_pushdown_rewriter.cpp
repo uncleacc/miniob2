@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 
 RC PredicatePushdownRewriter::rewrite(std::unique_ptr<LogicalOperator> &oper, bool &change_made)
 {
+  DEBUG_PRINT("debug: 重写：谓词下推\n");
   RC rc = RC::SUCCESS;
   if (oper->type() != LogicalOperatorType::PREDICATE) {
     return rc;

@@ -25,6 +25,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/project_logical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
 #include "sql/operator/update_logical_operator.h" // new
+#include "sql/operator/aggr_logical_operator.h"   // new
 
 #include "sql/stmt/stmt.h"
 #include "sql/stmt/calc_stmt.h"
@@ -86,18 +87,46 @@ RC LogicalPlanGenerator::create_plan(CalcStmt *calc_stmt, std::unique_ptr<Logica
 RC LogicalPlanGenerator::create_plan(
     SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
-  unique_ptr<LogicalOperator> table_oper(nullptr);
+  DEBUG_PRINT("debug: 创建select逻辑算子\n");
+  unique_ptr<LogicalOperator> table_oper(nullptr);    // TODO
 
-  const std::vector<Table *> &tables = select_stmt->tables();
   const std::vector<Field> &all_fields = select_stmt->query_fields();
+  std::vector<Expression*> &query_exprs = select_stmt->query_exprs();
+  std::vector<Expression*> aggr_exprs;
+  // FROM
+  const std::vector<Table *> &tables = select_stmt->tables();
   for (Table *table : tables) {
+    
     std::vector<Field> fields;
-    for (const Field &field : all_fields) {
-      if (0 == strcmp(field.table_name(), table->name())) {
-        fields.push_back(field);
+    // 选择列
+    // for (const Field &field : all_fields) {
+    //   if (0 == strcmp(field.table_name(), table->name())) {
+    //     fields.push_back(field);
+    //   }
+    // }
+
+    for (Expression *expr : query_exprs) {
+      switch (expr->type()) {
+        case ExprType::FIELD : {
+          FieldExpr *field_expr = static_cast<FieldExpr*>(expr);
+          if (0 == strcmp(field_expr->field().table_name(), table->name())) {
+            fields.push_back(field_expr->field());
+          }
+        } break;
+        case ExprType::AGGREGATION : {
+          AggregationExpr *aggr_expr = static_cast<AggregationExpr*>(expr);
+          if (0 == strcmp(aggr_expr->field().table_name(), table->name())) {
+            fields.push_back(aggr_expr->field());
+            aggr_exprs.push_back(expr);    // <----------------------------
+          }
+        } break;
+        default : {
+          return RC::INTERNAL;
+        }
       }
     }
 
+    // table scan算子
     unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, fields, true/*readonly*/));
     if (table_oper == nullptr) {
       table_oper = std::move(table_get_oper);
@@ -109,14 +138,48 @@ RC LogicalPlanGenerator::create_plan(
     }
   }
 
+  // 过滤算子(WHERE)
   unique_ptr<LogicalOperator> predicate_oper;
   RC rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
     return rc;
   }
+  
+  // GROUP_BY
 
-  unique_ptr<LogicalOperator> project_oper(new ProjectLogicalOperator(all_fields));
+  // HAVING(2023不实现)
+
+  // 如何添加聚合算子
+  unique_ptr<LogicalOperator> aggr_oper(new AggregationLogicalOperator(aggr_exprs));
+  bool aggr_ = true;
+  if (aggr_exprs.size() != 0) {     // 如果有投影算子，则将后面的都连好
+    if (predicate_oper) {
+      if (table_oper) {
+        predicate_oper->add_child(std::move(table_oper));
+        DEBUG_PRINT("debug: 添加table算子\n");
+      }
+      aggr_oper->add_child(std::move(predicate_oper));
+      DEBUG_PRINT("debug: 添加过滤算子\n");
+    } else {
+      if (table_oper) {
+        DEBUG_PRINT("debug: 添加table算子\n");
+        aggr_oper->add_child(std::move(table_oper));
+      }
+    }
+  } else {
+    aggr_ = false;
+  }
+  // 投影算子
+  unique_ptr<LogicalOperator> project_oper(new ProjectLogicalOperator(query_exprs));
+  // unique_ptr<LogicalOperator> project_oper(new ProjectLogicalOperator(all_fields));
+  if (aggr_) {
+    project_oper->add_child(std::move(aggr_oper));
+
+    logical_operator.swap(project_oper);
+    return RC::SUCCESS;
+  } 
+  
   if (predicate_oper) {
     if (table_oper) {
       predicate_oper->add_child(std::move(table_oper));
@@ -130,12 +193,22 @@ RC LogicalPlanGenerator::create_plan(
 
   logical_operator.swap(project_oper);
   return RC::SUCCESS;
+  // table_scan算子   table_scan算子
+  //                |
+  //         join算子（未实现）
+  //                |
+  //             过滤算子              ：where
+  //                |
+  //             group_by             ：分组
+  //                |
+  //             聚合算子
+  //                |
+  //             投影算子             ：列选择
 }
 
 RC LogicalPlanGenerator::create_plan(
     FilterStmt *filter_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
-  DEBUG_PRINT("debug: LogicalPlanGenerator: 创建filter逻辑执行计划\n");
   std::vector<unique_ptr<Expression>> cmp_exprs;
   const std::vector<FilterUnit *> &filter_units = filter_stmt->filter_units();
   for (const FilterUnit *filter_unit : filter_units) {
@@ -155,7 +228,6 @@ RC LogicalPlanGenerator::create_plan(
     ComparisonExpr *cmp_expr = new ComparisonExpr(filter_unit->comp(), std::move(left), std::move(right));
     cmp_exprs.emplace_back(cmp_expr);
   }
-
   unique_ptr<PredicateLogicalOperator> predicate_oper;
   if (!cmp_exprs.empty()) {
     unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));

@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 
 RC ComparisonSimplificationRule::rewrite(std::unique_ptr<Expression> &expr, bool &change_made)
 {
+  // DEBUG_PRINT("debug: 比较表达式\n");
   RC rc = RC::SUCCESS;
   change_made = false;
   if (expr->type() == ExprType::COMPARISON) {

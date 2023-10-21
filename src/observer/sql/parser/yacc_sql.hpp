@@ -95,12 +95,17 @@ extern int yydebug;
     NE = 301,
     LIKE = 302,
     NOT = 303,
-    NUMBER = 304,
-    FLOAT = 305,
-    DATE = 306,
-    ID = 307,
-    SSS = 308,
-    UMINUS = 309
+    MAX = 304,
+    MIN = 305,
+    COUNT = 306,
+    AVG = 307,
+    SUM = 308,
+    NUMBER = 309,
+    FLOAT = 310,
+    DATE = 311,
+    ID = 312,
+    SSS = 313,
+    UMINUS = 314
   };
 #endif
 
@@ -108,7 +113,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 106 "yacc_sql.y"
+#line 111 "yacc_sql.y"
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
@@ -126,9 +131,14 @@ union YYSTYPE
   char *                            string;
   int                               number;
   float                             floats;
+  // new
   date                              dates;
+  AggrFuncType                      aggr_func_type;
+  AggrFuncNode*                     aggr_func_node;
+  SelectExprNode*                   select_expr_node;
+  std::vector<SelectExprNode> *     s_expr_node_list;
 
-#line 132 "yacc_sql.hpp"
+#line 142 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

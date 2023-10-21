@@ -47,6 +47,7 @@ RC Stmt::create_stmt(Db *db, ParsedSqlNode &sql_node, Stmt *&stmt)
       return DeleteStmt::create(db, sql_node.deletion, stmt);
     }
     case SCF_SELECT: {
+      // DEBUG_PRINT("debug: 创建select语句\n");
       return SelectStmt::create(db, sql_node.selection, stmt);
     }
 

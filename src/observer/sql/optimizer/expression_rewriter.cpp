@@ -26,7 +26,7 @@ ExpressionRewriter::ExpressionRewriter()
 RC ExpressionRewriter::rewrite(std::unique_ptr<LogicalOperator> &oper, bool &change_made)
 {
   RC rc = RC::SUCCESS;
-
+  // DEBUG_PRINT("debug: 表达式重写 类型：%d\n",(int)oper->type());
   bool sub_change_made = false;
   std::vector<std::unique_ptr<Expression>> &expressions = oper->expressions();
   for (std::unique_ptr<Expression> &expr : expressions) {
@@ -61,7 +61,7 @@ RC ExpressionRewriter::rewrite(std::unique_ptr<LogicalOperator> &oper, bool &cha
 RC ExpressionRewriter::rewrite_expression(std::unique_ptr<Expression> &expr, bool &change_made)
 {
   RC rc = RC::SUCCESS;
-
+  // DEBUG_PRINT("debug: 重写表达式\n");
   change_made = false;
   for (std::unique_ptr<ExpressionRewriteRule> &rule : expr_rewrite_rules_) {
     bool sub_change_made = false;

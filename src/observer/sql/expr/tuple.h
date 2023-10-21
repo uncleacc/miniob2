@@ -166,6 +166,7 @@ public:
 
   RC cell_at(int index, Value &cell) const override
   {
+    // DEBUG_PRINT("debug: RowTuple cell_at()\n");
     if (index < 0 || index >= static_cast<int>(speces_.size())) {
       LOG_WARN("invalid argument. index=%d", index);
       return RC::INVALID_ARGUMENT;
@@ -265,7 +266,7 @@ public:
     if (tuple_ == nullptr) {
       return RC::INTERNAL;
     }
-
+  
     const TupleCellSpec *spec = speces_[index];
     return tuple_->find_cell(*spec, cell);
   }
@@ -309,6 +310,7 @@ public:
 
   RC cell_at(int index, Value &cell) const override
   {
+    // DEBUG_PRINT("debug: ExpressionTuple cell_at()\n");
     if (index < 0 || index >= static_cast<int>(expressions_.size())) {
       return RC::INTERNAL;
     }
@@ -346,6 +348,11 @@ public:
   {
     cells_ = cells;
   }
+  // new
+  void set_speces(const std::vector<TupleCellSpec> &speces)
+  {
+    speces_ = speces;
+  }
 
   virtual int cell_num() const override
   {
@@ -364,11 +371,22 @@ public:
 
   virtual RC find_cell(const TupleCellSpec &spec, Value &cell) const override
   {
-    return RC::INTERNAL;
+    if (speces_.size() != cells_.size()) {
+      return RC::INTERNAL;
+    }
+    // TODO: 修改
+    for (int i = 0; i < speces_.size(); i++) {
+      if (spec.alias() && speces_[i].alias() && 0 == strcmp(spec.alias(), speces_[i].alias())) {
+        return cell_at(i, cell);
+      }
+      // TODO alias不同
+    }
+    return RC::EMPTY;
   }
 
 private:
   std::vector<Value> cells_;
+  std::vector<TupleCellSpec> speces_;
 };
 
 /**

@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/field/field.h"
 #include "sql/parser/value.h"
 #include "common/log/log.h"
+#include "sql/expr/tuple_cell.h"
 
 class Tuple;
 
@@ -43,6 +44,8 @@ enum class ExprType
   COMPARISON,   ///< 需要做比较的表达式
   CONJUNCTION,  ///< 多个表达式使用同一种关系(AND或OR)来联结
   ARITHMETIC,   ///< 算术运算
+  AGGREGATION,  /// new: 聚合
+  FUNCTION,     /// new: 函数
 };
 
 /**
@@ -123,6 +126,14 @@ public:
   const char *table_name() const { return field_.table_name(); }
 
   const char *field_name() const { return field_.field_name(); }
+
+  TupleCellSpec cell_spec(bool with_table_name = false)
+  {
+    if (with_table_name)
+      return TupleCellSpec(field_.table_name(), field_.field_name());
+    else
+      return TupleCellSpec(field_.table_name(), field_.field_name(), field_.field_name());
+  }
 
   RC get_value(const Tuple &tuple, Value &value) const override;
 
@@ -299,4 +310,51 @@ private:
   Type arithmetic_type_;
   std::unique_ptr<Expression> left_;
   std::unique_ptr<Expression> right_;
+};
+
+// TODO: 聚合表达式
+class AggregationExpr : public Expression
+{
+public:
+  AggregationExpr(Field field, AggrFuncType aggr_type);
+  virtual ~AggregationExpr()
+  {
+    if (field_expr_ != nullptr) {
+      delete field_expr_;
+    }
+  }
+
+  ExprType type() const override { return ExprType::AGGREGATION; }
+  AttrType value_type() const override { return attr_type_; };
+public:
+  RC get_value(const Tuple &tuple, Value &value) const override;
+  RC try_get_value(Value &value) const override;
+  const Field &field() const { return field_; }
+  TupleCellSpec cell_spec(bool with_table_name = false) const;
+
+public:
+  AggrFuncType aggr_type() const { return aggr_type_; }
+  // 开始聚合
+  RC begin_aggr();
+  // 添加聚合
+  RC aggr_tuple(Tuple *&tuple);
+  // 获取聚合结果
+  RC get_result(Value &value);
+public:
+  RC max_aggr_func(Value &value);
+  RC min_aggr_func(Value &value);
+  RC sum_aggr_func(Value &value);
+  RC avg_aggr_func(Value &value);
+  RC conut_aggr_func(Value &value);
+
+private:
+  AggrFuncType aggr_type_;  // 聚合函数类型
+  AttrType attr_type_;      // 聚合结果类型
+  Field field_;             // 要聚合的列
+  FieldExpr *field_expr_ = nullptr;
+private:
+  Value value_;
+  long long int i_val_;
+  long double   f_val_;
+  RC (AggregationExpr:: *aggr_func_)(Value &value);
 };

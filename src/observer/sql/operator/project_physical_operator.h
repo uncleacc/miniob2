@@ -33,6 +33,7 @@ public:
     
   }
   void add_projection(const Table *table, const FieldMeta *field);
+  void add_projection(const AggregationExpr *&aggr_expr); // new
 
   PhysicalOperatorType type() const override
   {

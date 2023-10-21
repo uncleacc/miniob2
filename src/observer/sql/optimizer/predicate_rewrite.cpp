@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 
 RC PredicateRewriteRule::rewrite(std::unique_ptr<LogicalOperator> &oper, bool &change_made)
 {
+  // DEBUG_PRINT("debug: 重写过滤\n");
   std::vector<std::unique_ptr<LogicalOperator>> &child_opers = oper->children();
   if (child_opers.size() != 1) {
     return RC::SUCCESS;
