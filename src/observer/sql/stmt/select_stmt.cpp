@@ -77,8 +77,10 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
 
   // collect query fields in `select` statement
-  std::vector<Field> query_fields;
   std::vector<Expression *> query_exprs; // new
+  // TODO, 先简单使用数量判断，做group by时再来修改
+  int num_attr = 0; // 属性数
+  int num_aggr = 0; // 聚合数
   for (int i = static_cast<int>(select_sql.select_exprs.size()) - 1; i >= 0; i--) {
     // 检查是否有聚合操作
     const SelectExprNode &s_expr_node = select_sql.select_exprs[i];
@@ -104,11 +106,12 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
         return rc;
       }
       // DEBUG_PRINT("debug: 创建聚合成功\n");
-      // query_fields.emplace_back()
       query_exprs.emplace_back(aggr_unit->get_aggr_expr()); // modify
 
+      num_aggr++;
       continue;
     }
+    num_attr++;
     // =============聚合============= //
 
     const RelAttrSqlNode &relation_attr = *s_expr_node.attribute;
@@ -117,7 +120,6 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     if (common::is_blank(relation_attr.relation_name.c_str()) &&
         0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
       for (Table *table : tables) {
-        wildcard_fields(table, query_fields);
         wildcard_query_exprs(table, query_exprs);   // new
       }
     }
@@ -133,7 +135,6 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
           return RC::SCHEMA_FIELD_MISSING;
         }
         for (Table *table : tables) {
-          wildcard_fields(table, query_fields);
           wildcard_query_exprs(table, query_exprs);   // new
         }
       } else {
@@ -145,7 +146,6 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
         Table *table = iter->second;
         if (0 == strcmp(field_name, "*")) {
-          wildcard_fields(table, query_fields);
           wildcard_query_exprs(table, query_exprs);   // new
         } else {
           const FieldMeta *field_meta = table->table_meta().field(field_name);
@@ -154,7 +154,6 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
             return RC::SCHEMA_FIELD_MISSING;
           }
 
-          query_fields.push_back(Field(table, field_meta));
           query_exprs.emplace_back(new FieldExpr(Field(table, field_meta)));    // modify
         }
       }
@@ -173,16 +172,15 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
         return RC::SCHEMA_FIELD_MISSING;
       }
 
-      query_fields.push_back(Field(table, field_meta));
       query_exprs.emplace_back(new FieldExpr(Field(table, field_meta)));   // new
     }
   }
 
   // 检查聚合
-  // if (!select_sql.grourp_by_rels.empty() && query_exprs.size()) {
-  //   DEBUG_PRINT("debug: 聚合语法错误\n");
-  //   return RC::INVALID_ARGUMENT;
-  // }
+  if (select_sql.grourp_by_rels.empty() && num_aggr && num_attr) {
+    DEBUG_PRINT("debug: 聚合语法错误\n");
+    return RC::INVALID_ARGUMENT;
+  }
 
   Table *default_table = nullptr;
   if (tables.size() == 1) {
@@ -206,7 +204,6 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   SelectStmt *select_stmt = new SelectStmt();
   // TODO add expression copy
   select_stmt->tables_.swap(tables);
-  select_stmt->query_fields_.swap(query_fields);
   select_stmt->filter_stmt_ = filter_stmt;
   select_stmt->query_exprs_.swap(query_exprs);
   stmt = select_stmt;
