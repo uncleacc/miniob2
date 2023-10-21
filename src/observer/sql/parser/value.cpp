@@ -253,7 +253,7 @@ int Value::compare(const Value &other) const
       return common::compare_int((void *)&left_data, (void *)&right_data);
     } else if (this->attr_type_ == FLOATS) {  // 浮点与其它类型比较
       float left_data = this->num_value_.float_value_;
-      int right_data = (float)other.num_value_.float_value_;
+      float right_data = 0.0;
 
       switch (other.attr_type_)
       {
@@ -274,7 +274,7 @@ int Value::compare(const Value &other) const
         return -1;
       }
 
-        return common::compare_float((void *)&left_data, (void *)&right_data);
+      return common::compare_float((void *)&left_data, (void *)&right_data);
     } 
     else if (this->attr_type_ == CHARS) {  // 左边为字符串
       switch (other.attr_type_)
