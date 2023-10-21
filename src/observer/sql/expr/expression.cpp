@@ -442,7 +442,10 @@ RC AggregationExpr::get_result(Value &value)
       value = Value((int)i_val_);
     } break;
     case SUM_AGGR_T: {
-      value = Value((float)f_val_);
+      if (attr_type_ == AttrType::INTS)
+        value = Value((int)i_val_);
+      else
+        value = Value((float)f_val_);
     } break;
     case AVG_AGGR_T: {
       if (i_val_ == 0) {
