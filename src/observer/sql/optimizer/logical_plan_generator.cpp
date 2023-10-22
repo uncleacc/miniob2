@@ -98,13 +98,7 @@ RC LogicalPlanGenerator::create_plan(
   bool is_join_by_con = select_stmt->join_stmts().size() > 0;         // 是否为inner join
   int i = 0;
 
-  // ================== where ================== //
-  unique_ptr<LogicalOperator> predicate_oper;
-  RC rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
-    return rc;
-  }
+  FilterStmt * filter_stmt = select_stmt->filter_stmt();
   // FROM
   const std::vector<Table *> &tables = select_stmt->tables();
   for (Table *table : tables) {
@@ -130,11 +124,46 @@ RC LogicalPlanGenerator::create_plan(
         }
       }
     }
-
     // ================== table ================== //
-    unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, fields, true/*readonly*/));
-    // TODO：判断谓词逻辑，是否可以加到table上
-    // 加到table上后抹去，最后判断谓词是否为空，为空则删去逻辑算子
+    TableGetLogicalOperator *table_scan_oper = new TableGetLogicalOperator(table, fields, true/*readonly*/);
+    // 每次创建一个table scan逻辑算子就下推表达式
+    if (filter_stmt) {  // 如果有过滤语句
+      std::vector<std::unique_ptr<Expression>> table_scan_exprs;
+      std::vector<FilterUnit *> &filter_units = filter_stmt->filter_units();
+
+      for (auto filter_unit = filter_units.rbegin(); filter_unit != filter_units.rend();) {
+        const FilterObj &filter_obj_left = (*filter_unit)->left();
+        const FilterObj &filter_obj_right = (*filter_unit)->right();
+        // 如果是一个列比较一个确定值，则下推表达式
+        if (  (
+                ( filter_obj_left.is_attr && !filter_obj_right.is_attr ) &&         // 是列与属性比较
+                ( 0 == strcmp(filter_obj_left.field.table_name(), table->name()))   // 是当前表
+              ) ||
+              (
+                ( !filter_obj_left.is_attr && filter_obj_right.is_attr) &&
+                ( 0 == strcmp(filter_obj_left.field.table_name(), table->name()))
+              ) 
+           ) {
+          unique_ptr<Expression> left(filter_obj_left.is_attr
+                                              ? static_cast<Expression *>(new FieldExpr(filter_obj_left.field))
+                                              : static_cast<Expression *>(new ValueExpr(filter_obj_left.value)));
+
+          unique_ptr<Expression> right(filter_obj_right.is_attr
+                                                ? static_cast<Expression *>(new FieldExpr(filter_obj_right.field))
+                                                : static_cast<Expression *>(new ValueExpr(filter_obj_right.value)));
+
+          ComparisonExpr *cmp_expr = new ComparisonExpr((*filter_unit)->comp(), std::move(left), std::move(right));
+          table_scan_exprs.emplace_back(cmp_expr);
+          filter_unit = decltype(filter_unit)(filter_units.erase(std::next(filter_unit).base())); // 删除并更新迭代器
+        } else {
+          ++filter_unit;    
+        }
+      }
+
+      table_scan_oper->set_predicates(std::move(table_scan_exprs));
+    }
+    
+    unique_ptr<LogicalOperator> table_get_oper(table_scan_oper);
     // ================== join ================== //
     if (is_join_by_con) {
       // ================== inner join ================== //
@@ -171,7 +200,14 @@ RC LogicalPlanGenerator::create_plan(
 
     i++;
   }
-  
+  // ================== where ================== //
+  unique_ptr<LogicalOperator> predicate_oper;
+  RC rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+    return rc;
+  }
+
   // GROUP_BY
 
   // HAVING(2023不实现)
