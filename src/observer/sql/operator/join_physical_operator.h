@@ -44,6 +44,8 @@ private:
 
 private:
   Trx *trx_ = nullptr;
+  // 左元组名
+  // 右元组名
 
   //! 左表右表的真实对象是在PhysicalOperator::children_中，这里是为了写的时候更简单
   PhysicalOperator *left_ = nullptr;

@@ -154,6 +154,7 @@ RC ComparisonExpr::try_get_value(Value &cell) const
 
 RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 {
+  // 入参value用于获得比较结果
   DEBUG_PRINT("debug: ComparisonExpr: get_value\n");
   Value left_value;
   Value right_value;

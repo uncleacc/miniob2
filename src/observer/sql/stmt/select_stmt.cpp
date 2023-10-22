@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/stmt/select_stmt.h"
 #include "sql/stmt/filter_stmt.h"
+#include "sql/stmt/join_stmt.h"
 #include "sql/stmt/aggregation_stmt.h"
 #include "common/log/log.h"
 #include "common/lang/string.h"
@@ -25,6 +26,11 @@ SelectStmt::~SelectStmt()
   if (nullptr != filter_stmt_) {
     delete filter_stmt_;
     filter_stmt_ = nullptr;
+  }
+  for (auto p : join_stmts_) {
+    if (p != nullptr) {
+      delete p;
+    }
   }
 }
 
@@ -53,8 +59,14 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     return RC::INVALID_ARGUMENT;
   }
 
+  // 判断逗号和join是否同时存在
+  vector<JoinStmt*> join_stmts;
+  if (select_sql.relations.size() > 1 && select_sql.joins.size() > 0) {
+    return RC::INTERNAL;  // 既有逗号又有join，语法不支持
+  }
+
   // collect tables in `from` statement
-  // 找到'from'后面的表
+  // 找到'from'后面的逗号连接的表
   std::vector<Table *> tables;
   std::unordered_map<std::string, Table *> table_map;
   for (size_t i = 0; i < select_sql.relations.size(); i++) {
@@ -75,10 +87,28 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     table_map.insert(std::pair<std::string, Table *>(table_name, table));
   }
 
+  // 找到'from'后面的join连接的表
+  for (size_t i = 0; i < select_sql.joins.size(); i++) { // 从左向右
+    const std::string &table_name = select_sql.joins[i].right_rel;
+    if (table_name.empty()) {
+      LOG_WARN("invalid argument. relation name is null. join index=%d", select_sql.joins.size() - i);
+      return RC::INVALID_ARGUMENT;
+    }
+
+    Table *table = db->find_table(table_name.c_str());
+    if (nullptr == table) {
+      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name.c_str());
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+
+    DEBUG_PRINT("debug: 找到join表：%s\n",table_name.c_str());
+    tables.push_back(table);
+    table_map.insert(std::pair<std::string, Table *>(table_name, table));
+  }
 
   // collect query fields in `select` statement
   std::vector<Expression *> query_exprs; // new
-  // TODO, 先简单使用数量判断，做group by时再来修改
+    // TODO, 先简单使用数量判断，做group by时再来修改
   int num_attr = 0; // 属性数
   int num_aggr = 0; // 聚合数
   for (int i = static_cast<int>(select_sql.select_exprs.size()) - 1; i >= 0; i--) {
@@ -187,6 +217,17 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     default_table = tables[0];
   }
 
+  // 创建join stmt
+  for (size_t i = 0; i < select_sql.joins.size(); i++) {
+    RC rc = RC::SUCCESS;
+    JoinStmt* join_stmt = nullptr;
+    rc = JoinStmt::create(db, default_table, &table_map, select_sql.joins[i], join_stmt);
+    // TODO
+    join_stmts.emplace_back(join_stmt);
+  }
+  
+
+
   // create filter statement in `where` statement
   FilterStmt *filter_stmt = nullptr;
   RC rc = FilterStmt::create(db,
@@ -206,6 +247,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->tables_.swap(tables);
   select_stmt->filter_stmt_ = filter_stmt;
   select_stmt->query_exprs_.swap(query_exprs);
+  select_stmt->join_stmts_.swap(join_stmts);
   stmt = select_stmt;
   return RC::SUCCESS;
 }

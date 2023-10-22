@@ -26,6 +26,7 @@ class FilterStmt;
 class AggrStmt;
 class Db;
 class Table;
+class JoinStmt;
 
 /**
  * @brief 表示select语句
@@ -50,10 +51,6 @@ public:
   {
     return tables_;
   }
-  const std::vector<Field> &query_fields() const
-  {
-    return query_fields_;
-  }
   FilterStmt *filter_stmt() const
   {
     return filter_stmt_;
@@ -62,12 +59,16 @@ public:
   std::vector<Expression*> &query_exprs() {
     return query_exprs_;
   }
+  // new
+  std::vector<JoinStmt*> &join_stmts() {
+    return join_stmts_;
+  }
 
 private:
-  std::vector<Field> query_fields_;
   std::vector<Table *> tables_;
   FilterStmt *filter_stmt_ = nullptr;
-  // 添加聚合语句
-  // GROUP_BY
   std::vector<Expression *> query_exprs_; // new
+  // join: 表名，对应的表，join条件
+  std::vector<JoinStmt*> join_stmts_;  // new
+  // GOURP BY
 };

@@ -46,6 +46,7 @@ enum class ExprType
   ARITHMETIC,   ///< 算术运算
   AGGREGATION,  /// new: 聚合
   FUNCTION,     /// new: 函数
+  JOIN,         /// new: 连接
 };
 
 /**
@@ -312,7 +313,7 @@ private:
   std::unique_ptr<Expression> right_;
 };
 
-// TODO: 聚合表达式
+// 聚合表达式: 似乎是一个失败的数据结构
 class AggregationExpr : public Expression
 {
 public:

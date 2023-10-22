@@ -35,6 +35,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/explain_stmt.h"
 #include "sql/stmt/update_stmt.h" // new
+#include "sql/stmt/join_stmt.h"
 
 using namespace std;
 
@@ -88,23 +89,27 @@ RC LogicalPlanGenerator::create_plan(
     SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
   DEBUG_PRINT("debug: 创建select逻辑算子\n");
-  unique_ptr<LogicalOperator> table_oper(nullptr);    // TODO
+  unique_ptr<LogicalOperator> table_oper(nullptr);
 
-  const std::vector<Field> &all_fields = select_stmt->query_fields();
-  std::vector<Expression*> &query_exprs = select_stmt->query_exprs();
+  std::vector<Expression*> &query_exprs = select_stmt->query_exprs(); // select部分
+  std::vector<JoinStmt*> &join_stmts = select_stmt->join_stmts();     // join部分
+
   std::vector<Expression*> aggr_exprs;
+  bool is_join_by_con = select_stmt->join_stmts().size() > 0;         // 是否为inner join
+  int i = 0;
+
+  // ================== where ================== //
+  unique_ptr<LogicalOperator> predicate_oper;
+  RC rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+    return rc;
+  }
   // FROM
   const std::vector<Table *> &tables = select_stmt->tables();
   for (Table *table : tables) {
-    
     std::vector<Field> fields;
-    // 选择列
-    // for (const Field &field : all_fields) {
-    //   if (0 == strcmp(field.table_name(), table->name())) {
-    //     fields.push_back(field);
-    //   }
-    // }
-
+    // ================== select ================== //
     for (Expression *expr : query_exprs) {
       switch (expr->type()) {
         case ExprType::FIELD : {
@@ -126,31 +131,52 @@ RC LogicalPlanGenerator::create_plan(
       }
     }
 
-    // table scan算子
+    // ================== table ================== //
     unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, fields, true/*readonly*/));
-    if (table_oper == nullptr) {
-      table_oper = std::move(table_get_oper);
-    } else {
-      JoinLogicalOperator *join_oper = new JoinLogicalOperator;
-      join_oper->add_child(std::move(table_oper));
-      join_oper->add_child(std::move(table_get_oper));
-      table_oper = unique_ptr<LogicalOperator>(join_oper);
-    }
-  }
+    // TODO：判断谓词逻辑，是否可以加到table上
+    // 加到table上后抹去，最后判断谓词是否为空，为空则删去逻辑算子
+    // ================== join ================== //
+    if (is_join_by_con) {
+      // ================== inner join ================== //
+      if (table_oper == nullptr) {
+        table_oper = std::move(table_get_oper);
+      } else {        
+        unique_ptr<LogicalOperator> join_oper(new JoinLogicalOperator);
+        join_oper->add_child(std::move(table_oper));
+        join_oper->add_child(std::move(table_get_oper));
 
-  // 过滤算子(WHERE)
-  unique_ptr<LogicalOperator> predicate_oper;
-  RC rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
-    return rc;
+        unique_ptr<LogicalOperator> predicate_oper;
+        FilterStmt *filter = join_stmts[i - 1]->join_condition(); // i - 1
+        RC rc = create_plan(filter, predicate_oper);
+        if (rc != RC::SUCCESS) {
+          LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+          return rc;
+        }
+        predicate_oper->add_child(std::move(join_oper));
+
+        table_oper = std::move(predicate_oper);
+      }
+    }
+      // ================== natural join ================== //
+    else {
+      if (table_oper == nullptr) {
+        table_oper = std::move(table_get_oper);
+      } else {
+        JoinLogicalOperator *join_oper = new JoinLogicalOperator;
+        join_oper->add_child(std::move(table_oper));
+        join_oper->add_child(std::move(table_get_oper));
+        table_oper = unique_ptr<LogicalOperator>(join_oper);
+      }
+    }
+
+    i++;
   }
   
   // GROUP_BY
 
   // HAVING(2023不实现)
 
-  // 如何添加聚合算子
+  // ================== 聚合 ================== //
   unique_ptr<LogicalOperator> aggr_oper(new AggregationLogicalOperator(aggr_exprs));
   bool aggr_ = true;
   if (aggr_exprs.size() != 0) {     // 如果有投影算子，则将后面的都连好
@@ -170,16 +196,15 @@ RC LogicalPlanGenerator::create_plan(
   } else {
     aggr_ = false;
   }
-  // 投影算子
+  // ================== project ================== //
   unique_ptr<LogicalOperator> project_oper(new ProjectLogicalOperator(query_exprs));
-  // unique_ptr<LogicalOperator> project_oper(new ProjectLogicalOperator(all_fields));
   if (aggr_) {
     project_oper->add_child(std::move(aggr_oper));
 
     logical_operator.swap(project_oper);
     return RC::SUCCESS;
   } 
-  
+  // ================== OK ================== //
   if (predicate_oper) {
     if (table_oper) {
       predicate_oper->add_child(std::move(table_oper));
@@ -190,14 +215,15 @@ RC LogicalPlanGenerator::create_plan(
       project_oper->add_child(std::move(table_oper));
     }
   }
-
+  // ================== set result ================== //
   logical_operator.swap(project_oper);
   return RC::SUCCESS;
   // table_scan算子   table_scan算子
+  //    where            where
   //                |
   //         join算子（未实现）
   //                |
-  //             过滤算子              ：where
+  //             过滤算子              ：连接条件
   //                |
   //             group_by             ：分组
   //                |

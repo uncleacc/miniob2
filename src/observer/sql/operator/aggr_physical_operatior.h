@@ -21,8 +21,9 @@ public:
 
     virtual ~AggrPhysicalOperator()
     {
-        for (Expression* ptr : expressions_) {
-            delete ptr;
+        for (Expression* ptr : expressions_) {  // 从stmt一直传到这里，删除
+            if (ptr != nullptr)
+                delete ptr;
         }
     }
 

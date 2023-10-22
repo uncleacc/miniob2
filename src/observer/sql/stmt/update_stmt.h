@@ -47,11 +47,6 @@ public:
   {
     return value_;
   }
-  // delete
-  // int value_amount() const
-  // {
-  //   return 1;
-  // }
   std::string field_name() const
   {
     return field_name_;
@@ -64,8 +59,6 @@ public:
 private:
   Table *table_ = nullptr;
   Value *value_ = nullptr;
-  // delete 因为只支持一个set，所以注释掉
-  // int value_amount_ = 0;
   std::string field_name_;
   FilterStmt *filter_stmt_ = nullptr;
 };
