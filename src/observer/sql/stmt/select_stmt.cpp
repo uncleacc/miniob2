@@ -32,6 +32,7 @@ SelectStmt::~SelectStmt()
       delete p;
     }
   }
+  join_stmts_.clear();
 }
 
 static void wildcard_fields(Table *table, std::vector<Field> &field_metas)
@@ -60,7 +61,6 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   }
 
   // 判断逗号和join是否同时存在
-  vector<JoinStmt*> join_stmts;
   if (select_sql.relations.size() > 1 && select_sql.joins.size() > 0) {
     return RC::INTERNAL;  // 既有逗号又有join，语法不支持
   }
@@ -217,13 +217,16 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     default_table = tables[0];
   }
 
+  vector<JoinStmt*> join_stmts;
   // 创建join stmt
   for (size_t i = 0; i < select_sql.joins.size(); i++) {
     RC rc = RC::SUCCESS;
     JoinStmt* join_stmt = nullptr;
     rc = JoinStmt::create(db, default_table, &table_map, select_sql.joins[i], join_stmt);
-    // TODO
-    join_stmts.emplace_back(join_stmt);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
+    join_stmts.push_back(join_stmt);
   }
   
 

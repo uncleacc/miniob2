@@ -451,7 +451,6 @@ select_stmt:        /*  select 语句的语法解析树*/
     SELECT select_exprs FROM ID rel_list where
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
-      // modify: 修改select语法树
       if ($2 != nullptr) {
         $$->selection.select_exprs.swap(*$2);
         delete $2;

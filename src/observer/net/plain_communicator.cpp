@@ -176,6 +176,16 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
     return write_state(event, need_disconnect);
   }
 
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// 从这里开始写入结果
+
+  DEBUG_PRINT("debug: sql_result->open()\n");
   rc = sql_result->open();
   if (OB_FAIL(rc)) {
     sql_result->close();
@@ -185,7 +195,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
 
   const TupleSchema &schema = sql_result->tuple_schema();
   const int cell_num = schema.cell_num();
-
+  
   for (int i = 0; i < cell_num; i++) {
     const TupleCellSpec &spec = schema.cell_at(i);
     const char *alias = spec.alias();
@@ -200,6 +210,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
       }
 
       int len = strlen(alias);
+
       rc = writer_->writen(alias, len);
       if (OB_FAIL(rc)) {
         LOG_WARN("failed to send data to client. err=%s", strerror(errno));
@@ -218,19 +229,21 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
       return rc;
     }
   }
-
+  DEBUG_PRINT("debug: sql_result->写入结果\n");
   rc = RC::SUCCESS;
   Tuple *tuple = nullptr;
   while (RC::SUCCESS == (rc = sql_result->next_tuple(tuple))) {
     assert(tuple != nullptr);
 
     int cell_num = tuple->cell_num();
+    DEBUG_PRINT("debug: 结果cell_num = %d\n", cell_num);
     for (int i = 0; i < cell_num; i++) {
       if (i != 0) {
         const char *delim = " | ";
         rc = writer_->writen(delim, strlen(delim));
         if (OB_FAIL(rc)) {
           LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+          DEBUG_PRINT("debug: 退出\n");
           sql_result->close();
           return rc;
         }
@@ -239,6 +252,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
       Value value;
       rc = tuple->cell_at(i, value);
       if (rc != RC::SUCCESS) {
+        DEBUG_PRINT("debug: 获取value失败\n");
         sql_result->close();
         return rc;
       }

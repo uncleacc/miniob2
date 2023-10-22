@@ -85,6 +85,18 @@ RC LogicalPlanGenerator::create_plan(CalcStmt *calc_stmt, std::unique_ptr<Logica
   return RC::SUCCESS;
 }
 
+  // table_scan算子   table_scan算子
+  //    where            where
+  //                |
+  //         join算子（未实现）
+  //                |
+  //             过滤算子              ：连接条件
+  //                |
+  //             group_by             ：分组
+  //                |
+  //             聚合算子
+  //                |
+  //             投影算子             ：列选择
 RC LogicalPlanGenerator::create_plan(
     SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
@@ -92,10 +104,10 @@ RC LogicalPlanGenerator::create_plan(
   unique_ptr<LogicalOperator> table_oper(nullptr);
 
   std::vector<Expression*> &query_exprs = select_stmt->query_exprs(); // select部分
-  std::vector<JoinStmt*> &join_stmts = select_stmt->join_stmts();     // join部分
 
   std::vector<Expression*> aggr_exprs;
   bool is_join_by_con = select_stmt->join_stmts().size() > 0;         // 是否为inner join
+  std::vector<JoinStmt*> &join_stmts = select_stmt->join_stmts();     // join部分
   int i = 0;
 
   FilterStmt * filter_stmt = select_stmt->filter_stmt();
@@ -126,6 +138,7 @@ RC LogicalPlanGenerator::create_plan(
     }
     // ================== table ================== //
     TableGetLogicalOperator *table_scan_oper = new TableGetLogicalOperator(table, fields, true/*readonly*/);
+    #if 1
     // 每次创建一个table scan逻辑算子就下推表达式
     if (filter_stmt) {  // 如果有过滤语句
       std::vector<std::unique_ptr<Expression>> table_scan_exprs;
@@ -162,6 +175,7 @@ RC LogicalPlanGenerator::create_plan(
 
       table_scan_oper->set_predicates(std::move(table_scan_exprs));
     }
+    #endif
     
     unique_ptr<LogicalOperator> table_get_oper(table_scan_oper);
     // ================== join ================== //
@@ -173,7 +187,6 @@ RC LogicalPlanGenerator::create_plan(
         unique_ptr<LogicalOperator> join_oper(new JoinLogicalOperator);
         join_oper->add_child(std::move(table_oper));
         join_oper->add_child(std::move(table_get_oper));
-
         unique_ptr<LogicalOperator> predicate_oper;
         FilterStmt *filter = join_stmts[i - 1]->join_condition(); // i - 1
         RC rc = create_plan(filter, predicate_oper);
@@ -186,7 +199,7 @@ RC LogicalPlanGenerator::create_plan(
         table_oper = std::move(predicate_oper);
       }
     }
-      // ================== natural join ================== //
+    // ================== natural join ================== //
     else {
       if (table_oper == nullptr) {
         table_oper = std::move(table_get_oper);
@@ -254,18 +267,6 @@ RC LogicalPlanGenerator::create_plan(
   // ================== set result ================== //
   logical_operator.swap(project_oper);
   return RC::SUCCESS;
-  // table_scan算子   table_scan算子
-  //    where            where
-  //                |
-  //         join算子（未实现）
-  //                |
-  //             过滤算子              ：连接条件
-  //                |
-  //             group_by             ：分组
-  //                |
-  //             聚合算子
-  //                |
-  //             投影算子             ：列选择
 }
 
 RC LogicalPlanGenerator::create_plan(

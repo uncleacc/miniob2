@@ -12,21 +12,24 @@
 using namespace std;
 
 // Join表达式
-class JoinStmt : public Stmt 
+class JoinStmt 
 {
 public:
   JoinStmt() = default;
-  ~JoinStmt();
-  StmtType type() const override { return StmtType::JOIN; }
+  ~JoinStmt() {
+    if (filter_ != nullptr) {
+      delete filter_;
+    }
+  }
+
 public:
-  Table *& table() { return table_; }
-  string& table_names() { return t_name_; }
-  FilterStmt* join_condition() { return filter_; }
+  FilterStmt* join_condition() 
+  { 
+    return filter_; 
+  }
 public:
     static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *table_map, 
         const JoinSqlNode &sql_node, JoinStmt*&stmt);
 private:
-  Table *table_ = nullptr;
-  string  t_name_;
   FilterStmt* filter_ = nullptr;
 };
