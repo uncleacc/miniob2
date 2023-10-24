@@ -41,13 +41,13 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
     }
     return rc;
   }
-  DEBUG_PRINT("debug: 完成逻辑计划的生成\n");
+  // DEBUG_PRINT("debug: 完成逻辑计划的生成\n");
   rc = rewrite(logical_operator);   // TODO
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to rewrite plan. rc=%s", strrc(rc));
     return rc;
   }
-  DEBUG_PRINT("debug: 完成重写\n");
+  // DEBUG_PRINT("debug: 完成重写\n");
   rc = optimize(logical_operator);  // do nothing
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to optimize plan. rc=%s", strrc(rc));
@@ -60,7 +60,7 @@ RC OptimizeStage::handle_request(SQLStageEvent *sql_event)
     LOG_WARN("failed to generate physical plan. rc=%s", strrc(rc));
     return rc;
   }
-  DEBUG_PRINT("debug: 创建物理执行计划\n");
+  // DEBUG_PRINT("debug: 创建物理执行计划\n");
   sql_event->set_operator(std::move(physical_operator));
 
   return rc;

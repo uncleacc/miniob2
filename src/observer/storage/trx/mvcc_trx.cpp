@@ -346,6 +346,8 @@ RC MvccTrx::rollback()
       } break;
 
       case Operation::Type::DELETE: {
+        DEBUG_PRINT("\nOperation::Type::DELETE\n\n");
+        
         Table *table = operation.table();
         RID rid(operation.page_num(), operation.slot_num());
         

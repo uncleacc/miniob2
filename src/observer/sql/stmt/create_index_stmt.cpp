@@ -26,10 +26,19 @@ RC CreateIndexStmt::create(Db *db, const CreateIndexSqlNode &create_index, Stmt 
   stmt = nullptr;
 
   const char *table_name = create_index.relation_name.c_str();
-  if (is_blank(table_name) || is_blank(create_index.index_name.c_str()) || is_blank(create_index.attribute_name.c_str())) {
-    LOG_WARN("invalid argument. db=%p, table_name=%p, index name=%s, attribute name=%s",
-        db, table_name, create_index.index_name.c_str(), create_index.attribute_name.c_str());
+  if (is_blank(table_name) || is_blank(create_index.index_name.c_str())) {
+    LOG_WARN("invalid argument. db=%p, table_name=%p, index name=%s",
+        db, table_name, create_index.index_name.c_str());
     return RC::INVALID_ARGUMENT;
+  }
+
+  // new：判读多列列名为空
+  for (auto &str : create_index.attribute_names) {
+    if (is_blank(str.c_str())) {
+      LOG_WARN("invalid argument. db=%p, table_name=%p, index name=%s, attribute name=%s",
+        db, table_name, create_index.index_name.c_str(), str.c_str());
+    return RC::INVALID_ARGUMENT;
+    }
   }
 
   // check whether the table exists
@@ -39,19 +48,25 @@ RC CreateIndexStmt::create(Db *db, const CreateIndexSqlNode &create_index, Stmt 
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
 
-  const FieldMeta *field_meta = table->table_meta().field(create_index.attribute_name.c_str());
-  if (nullptr == field_meta) {
-    LOG_WARN("no such field in table. db=%s, table=%s, field name=%s", 
-             db->name(), table_name, create_index.attribute_name.c_str());
-    return RC::SCHEMA_FIELD_NOT_EXIST;   
+  // new: 找到对应的field_meta
+  std::vector<const FieldMeta *> field_metas;
+  for (auto &str : create_index.attribute_names) {
+    const FieldMeta *field_meta = table->table_meta().field(str.c_str());
+    if (nullptr == field_meta) {
+      LOG_WARN("no such field in table. db=%s, table=%s, field name=%s", 
+              db->name(), table_name, str.c_str());
+      return RC::SCHEMA_FIELD_NOT_EXIST;   
+    }
+    field_metas.emplace_back(field_meta);
   }
 
+  // 查找索引是否建立
   Index *index = table->find_index(create_index.index_name.c_str());
   if (nullptr != index) {
     LOG_WARN("index with name(%s) already exists. table name=%s", create_index.index_name.c_str(), table_name);
     return RC::SCHEMA_INDEX_NAME_REPEAT;
   }
 
-  stmt = new CreateIndexStmt(table, field_meta, create_index.index_name);
+  stmt = new CreateIndexStmt(table, field_metas, create_index.index_name);
   return RC::SUCCESS;
 }

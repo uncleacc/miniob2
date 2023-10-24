@@ -165,13 +165,26 @@ const IndexMeta *TableMeta::index(const char *name) const
   return nullptr;
 }
 
-const IndexMeta *TableMeta::find_index_by_field(const char *field) const
+const IndexMeta *TableMeta::find_index_by_field(std::vector<const char*> &fields) const
 {
   for (const IndexMeta &index : indexes_) {
-    if (0 == strcmp(index.field(), field)) {
+    bool result = true;
+    if (index.field_num() != fields.size())
+    {
+      continue;
+    }
+    for (int i = 0; i < index.field_num(); i++) {
+      if (0 != strcmp(index.field(i), fields[i])) {
+        result = false;
+        break;
+      }
+    }
+    if (result)
+    {
       return &index;
     }
   }
+
   return nullptr;
 }
 
@@ -190,7 +203,7 @@ int TableMeta::record_size() const
   return record_size_;
 }
 
-int TableMeta::serialize(std::ostream &ss) const
+int TableMeta::serialize(std::ostream &ss) const    //TODO
 {
 
   Json::Value table_value;
@@ -225,7 +238,7 @@ int TableMeta::serialize(std::ostream &ss) const
   return ret;
 }
 
-int TableMeta::deserialize(std::istream &is)
+int TableMeta::deserialize(std::istream &is)  // TODO
 {
   Json::Value table_value;
   Json::CharReaderBuilder builder;
